@@ -1,0 +1,565 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import FooterOne from '../Components/Footer/FooterOne';
+import HeaderOne from '../Components/Header/HeaderOne';
+import {
+  Building2, Star, MapPin, Wifi, Car, Coffee, Dumbbell, Waves,
+  SlidersHorizontal, ChevronDown, ChevronUp, Search, Loader2,
+  Calendar, Users, X, ShieldCheck, ArrowRight, RefreshCw
+} from 'lucide-react';
+
+const HOTEL_API = process.env.REACT_APP_HOTEL_API_BASE_URL || 'http://localhost:8009/api/hotel';
+
+const AMENITY_ICONS = {
+  'Wi-Fi': <Wifi size={13} />, 'Parking': <Car size={13} />, 'Restaurant': <Coffee size={13} />,
+  'Gym': <Dumbbell size={13} />, 'Pool': <Waves size={13} />,
+};
+
+const MEAL_TYPES = { 0: 'Room Only', 1: 'Breakfast', 2: 'Half Board', 3: 'Full Board', 4: 'All Inclusive' };
+
+function StarRating({ rating }) {
+  const stars = Math.round(rating || 0);
+  return (
+    <span style={{ display: 'inline-flex', gap: '2px' }}>
+      {[1, 2, 3, 4, 5].map(i => (
+        <Star key={i} size={13} fill={i <= stars ? '#f59e0b' : 'none'} color={i <= stars ? '#f59e0b' : '#d1d5db'} />
+      ))}
+    </span>
+  );
+}
+
+export default function HotelResults() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const searchState = location.state;
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [hotels, setHotels] = useState([]);
+  const [error, setError] = useState('');
+  const [debugInfo, setDebugInfo] = useState(null);
+  const [showDebug, setShowDebug] = useState(false);
+
+  const [selectedPriceRanges, setSelectedPriceRanges] = useState([]);
+  const [selectedStars, setSelectedStars] = useState([]);
+  const [refundableOnly, setRefundableOnly] = useState(false);
+  const [mealFilter, setMealFilter] = useState(0);
+  const [sortBy, setSortBy] = useState('price_asc');
+  const [hotelNameFilter, setHotelNameFilter] = useState('');
+  const [selectedAmenities, setSelectedAmenities] = useState([]);
+  const [selectedGuestRatings, setSelectedGuestRatings] = useState([]);
+  const [selectedPropertyTypes, setSelectedPropertyTypes] = useState([]);
+  const [showFilters, setShowFilters] = useState(false);
+  const [traceId, setTraceId] = useState('');
+
+  // Show More states
+  const [showAllPrices, setShowAllPrices] = useState(false);
+  const [showAllAmenities, setShowAllAmenities] = useState(false);
+  const [showAllPropertyTypes, setShowAllPropertyTypes] = useState(false);
+
+  // ─── Search Hotels directly using CityCode ──────────────────────────
+  const fetchHotels = useCallback(async (state) => {
+    setIsLoading(true);
+    setError('');
+    setDebugInfo(null);
+    try {
+      const searchPayload = {
+        CheckIn: state.checkIn,
+        CheckOut: state.checkOut,
+        CityCode: state.cityCode,
+        HotelCodes: state.hotelCode || undefined, // Sent to API, but TBO often ignores this
+        CountryCode: state.CountryCode || 'IN',
+        GuestNationality: state.GuestNationality || 'IN',
+        PaxRooms: Array.from({ length: state.rooms || 1 }, () => ({
+          Adults: Math.ceil((state.adults || 2) / (state.rooms || 1)),
+          Children: 0,
+          ChildrenAges: null,
+        })),
+        ResponseTime: 23.0,
+        IsDetailedResponse: true,
+        Filters: {
+          Refundable: refundableOnly,
+          NoOfRooms: 0,
+          MealType: mealFilter,
+          OrderBy: 0,
+          StarRating: selectedStars.length === 1 ? selectedStars[0] : 0,
+          HotelName: hotelNameFilter || null,
+        },
+      };
+
+      // Step 1: Search availability directly using CityCode
+      const searchRes = await fetch(`${HOTEL_API}/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(searchPayload),
+      });
+
+      const searchData = await searchRes.json();
+      let results = searchData?.GetHotelResultResponse?.HotelResults || [];
+      const apiError = searchData?.GetHotelResultResponse?.Error;
+      
+      // RCA FIX: TBO Dynamic API completely ignores HotelCodeList. 
+      // If the user selected a specific hotel, we must filter the response locally!
+      if (state.hotelCode && results.length > 0) {
+        results = results.filter(h => String(h.HotelCode) === String(state.hotelCode));
+      }
+
+      setTraceId(searchData?.GetHotelResultResponse?.TraceId || '');
+      setHotels(results);
+
+      // Populate Debug Info
+      setDebugInfo({
+        requestPayload: searchPayload,
+        responseStatus: searchData?.GetHotelResultResponse?.ResponseStatus,
+        error: apiError,
+        rawResultsCount: searchData?.GetHotelResultResponse?.HotelResults?.length || 0,
+        filteredResultsCount: results.length
+      });
+
+      // Graceful Error Handling based on RCA
+      if (apiError && apiError.ErrorCode !== 0) {
+        if (apiError.ErrorMessage.includes("Invalid CityId") || apiError.ErrorMessage.includes("No data found")) {
+           setError("Destination currently not supported by supplier's dynamic inventory. Please try another destination.");
+        } else if (apiError.ErrorMessage.includes("CheckInDate must be greater")) {
+           setError("Check-in date must be in the future. Please modify your search dates.");
+        } else {
+           setError(`API Error: ${apiError.ErrorMessage}`);
+        }
+      } else if (results.length === 0) {
+        setError(state.hotelCode 
+          ? 'This specific hotel is not available for these dates.' 
+          : 'No hotels available for these dates. Please try different dates.');
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Failed to load hotels. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [refundableOnly, mealFilter, selectedStars, hotelNameFilter]);
+
+  useEffect(() => {
+    if (!searchState) { navigate('/'); return; }
+    try { sessionStorage.setItem('hotelSearchState', JSON.stringify(searchState)); } catch (_) {}
+    fetchHotels(searchState);
+  }, [searchState, navigate, fetchHotels]);
+
+  // ─── Sort & Filter ─────────────────────────────────────────────────────────
+  const filteredHotels = hotels
+    .filter(h => {
+      const price = h.Rooms?.[0]?.TotalFare ?? h.MinPrice ?? 0;
+      
+      if (selectedPriceRanges.length > 0) {
+        let priceMatched = false;
+        for (const range of selectedPriceRanges) {
+          if (range === '0-1000' && price < 1000) priceMatched = true;
+          else if (range === '1001-2000' && price >= 1001 && price <= 2000) priceMatched = true;
+          else if (range === '2001-4000' && price >= 2001 && price <= 4000) priceMatched = true;
+          else if (range === '4001-7000' && price >= 4001 && price <= 7000) priceMatched = true;
+          else if (range === '7001+' && price > 7000) priceMatched = true;
+        }
+        if (!priceMatched) return false;
+      }
+
+      if (selectedStars.length > 0 && !selectedStars.includes(Math.round(h.HotelRating))) return false;
+      
+      // Guest Rating Filter (mocked from HotelRating: 5=Excellent, 4=Very Good, 3=Good)
+      if (selectedGuestRatings.length > 0) {
+        const ratingMatch = (h.HotelRating >= 4.5 && selectedGuestRatings.includes('Excellent')) ||
+                            (h.HotelRating >= 3.5 && h.HotelRating < 4.5 && selectedGuestRatings.includes('Very Good')) ||
+                            (h.HotelRating >= 2.5 && h.HotelRating < 3.5 && selectedGuestRatings.includes('Good'));
+        if (!ratingMatch) return false;
+      }
+
+      // Property Type Filter (inferred from name)
+      if (selectedPropertyTypes.length > 0) {
+        const hName = (h.HotelName || '').toLowerCase();
+        let pType = 'hotel'; // Default
+        if (hName.includes('resort')) pType = 'resort';
+        if (hName.includes('villa')) pType = 'villa';
+        if (hName.includes('apartment') || hName.includes('apt')) pType = 'apartment';
+        if (hName.includes('hostel')) pType = 'hostel';
+        
+        if (!selectedPropertyTypes.map(t => t.toLowerCase()).includes(pType)) return false;
+      }
+
+      // Amenities Filter
+      if (selectedAmenities.length > 0) {
+        const facs = (h.HotelFacilities || []).map(f => f.toLowerCase());
+        const hasAllAmenities = selectedAmenities.every(a => facs.some(f => f.includes(a.toLowerCase())));
+        if (!hasAllAmenities) return false;
+      }
+
+      return true;
+    })
+    .sort((a, b) => {
+      const pa = a.Rooms?.[0]?.TotalFare ?? a.MinPrice ?? 0;
+      const pb = b.Rooms?.[0]?.TotalFare ?? b.MinPrice ?? 0;
+      if (sortBy === 'price_asc') return pa - pb;
+      if (sortBy === 'price_desc') return pb - pa;
+      if (sortBy === 'rating') return (b.HotelRating || 0) - (a.HotelRating || 0);
+      return 0;
+    });
+
+  const nights = searchState
+    ? Math.ceil((new Date(searchState.checkOut) - new Date(searchState.checkIn)) / (1000 * 60 * 60 * 24))
+    : 1;
+
+  const toggleStar = (s) => setSelectedStars(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
+  const toggleArray = (setter, val) => setter(prev => prev.includes(val) ? prev.filter(x => x !== val) : [...prev, val]);
+
+  const handleSelectHotel = (hotel) => {
+    navigate('/hotel-detail', {
+      state: {
+        ...searchState,
+        hotel,
+        nights,
+        traceId,
+      }
+    });
+  };
+
+  return (
+    <>
+      <HeaderOne />
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800&display=swap');
+        .hr-page { background: #eaeaef; min-height: 100vh; font-family: 'Inter', sans-serif; }
+        .hr-topbar { background: linear-gradient(135deg, #0a1128 0%, #162b4d 100%); padding: 60px 0 40px; color: #fff; }
+        .hr-topbar-inner { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+        .hr-breadcrumb { font-size: 13px; color: rgba(255,255,255,0.7); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; font-weight: 500;}
+        .hr-topbar h1 { font-family: 'Outfit', sans-serif; font-size: clamp(1.6rem, 3vw, 2.4rem); font-weight: 800; margin: 0 0 8px; }
+        .hr-topbar-meta { display: flex; gap: 20px; flex-wrap: wrap; font-size: 14px; color: rgba(255,255,255,0.9); font-weight: 500;}
+        .hr-topbar-meta span { display: flex; align-items: center; gap: 6px; }
+        
+        .hr-content { max-width: 1200px; margin: 40px auto 0; padding: 0 20px 40px; display: grid; grid-template-columns: 280px 1fr; gap: 32px; }
+        @media(max-width: 900px) { .hr-content { grid-template-columns: 1fr; margin-top: 20px; } .hr-sidebar { display: none; } .hr-sidebar.mobile-open { display: block; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9999; background: #fff; padding: 0; margin: 0; overflow-y: auto; } .hr-sidebar.mobile-open .hr-sidebar-card { border: none; box-shadow: none; border-radius: 0; margin: 0; } }
+        
+        /* Sidebar */
+        .hr-sidebar { position: sticky; top: 80px; height: fit-content; }
+        .hr-sidebar-card { background: #fff; border-radius: 4px; overflow: visible; box-shadow: 0 1px 4px rgba(0,0,0,0.1); margin-bottom: 16px; border: 1px solid #e2e8f0; }
+        .hr-sidebar-header { padding: 20px; font-weight: 800; font-size: 22px; color: #000; display: flex; justify-content: space-between; align-items: center; }
+        .hr-sidebar-body { padding: 0 20px 20px; max-height: calc(100vh - 120px); overflow-y: auto; }
+        .hr-sidebar-body::-webkit-scrollbar { width: 6px; }
+        .hr-sidebar-body::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+        .hr-sidebar-body::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
+        .hr-filter-section { margin-bottom: 24px; }
+        .hr-filter-title { font-size: 16px; font-weight: 600; color: #1a1a2e; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+        .hr-filter-label { display: flex; align-items: flex-start; gap: 12px; font-size: 14px; font-weight: 500; color: #1a1a2e; cursor: pointer; margin-bottom: 16px; }
+        .hr-filter-label input[type="checkbox"] { 
+            display: block !important; 
+            visibility: visible !important; 
+            opacity: 1 !important; 
+            width: 18px !important; 
+            height: 18px !important; 
+            min-width: 18px !important; 
+            min-height: 18px !important; 
+            accent-color: #008cff; 
+            cursor: pointer; 
+            margin: 2px 0 0 0 !important; 
+            appearance: auto !important; 
+            -webkit-appearance: checkbox !important;
+        }
+        .hr-star-btn { border: 1px solid #cbd5e1; background: #fff; border-radius: 4px; padding: 6px 12px; font-size: 13px; font-weight: 600; color: #475569; cursor: pointer; transition: all 0.15s; margin: 0 6px 8px 0; }
+        .hr-star-btn.active { border-color: #008cff; background: #e5f3ff; color: #008cff; }
+        .hr-show-more { color: #008cff; font-size: 14px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 4px; background: none; border: none; padding: 0; margin-top: 4px; }
+        
+        /* Mobile Filter Toggle Button */
+        .hr-mobile-filter-btn { display: none; background: #1a1a2e; color: #fff; border: none; padding: 12px 20px; border-radius: 8px; font-weight: 700; font-family: 'Outfit', sans-serif; cursor: pointer; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-bottom: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        @media(max-width: 900px) { .hr-mobile-filter-btn { display: flex; } }
+
+        /* Sort bar */
+        .hr-sortbar { display: flex; align-items: center; flex-wrap: wrap; background: #fff; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); margin-bottom: 24px; border: 1px solid #e2e8f0;}
+        .hr-sort-label { font-size: 14px; font-weight: 700; color: #000; padding: 16px 20px; border-right: 1px solid #e2e8f0;}
+        .hr-sort-btn { background: transparent; border: none; padding: 16px 20px; font-size: 14px; font-weight: 600; color: #4a4a4a; cursor: pointer; transition: all 0.15s; border-bottom: 3px solid transparent; flex: 1; text-align: center; }
+        @media(max-width: 600px) { .hr-sort-label { width: 100%; border-right: none; border-bottom: 1px solid #e2e8f0; } .hr-sort-btn { padding: 12px 10px; font-size: 13px; } }
+        .hr-sort-btn:hover { color: #008cff; }
+        .hr-sort-btn.active { color: #008cff; border-bottom-color: #008cff; }
+        .hr-count { margin-left: auto; font-size: 14px; font-weight: 700; color: #000; padding-right: 20px;}
+        @media(max-width: 600px) { .hr-count { display: none; } }
+        
+        /* Hotel cards (MakeMyTrip Style) */
+        .hr-card { background: #fff; border-radius: 4px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.1); margin-bottom: 24px; display: flex; transition: box-shadow 0.2s; border: 1px solid #e2e8f0; cursor: pointer;}
+        .hr-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .hr-card-img { width: 260px; flex-shrink: 0; position: relative; overflow: hidden; padding: 16px; }
+        .hr-card-img img { width: 100%; height: 180px; object-fit: cover; border-radius: 4px; background: #f1f5f9; }
+        .hr-card-body { flex: 1; display: flex; }
+        .hr-card-middle { flex: 1; padding: 16px 20px 16px 0; display: flex; flex-direction: column; }
+        .hr-card-right { width: 240px; border-left: 1px solid #e2e8f0; padding: 16px 20px; display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-end; background: #fafafa;}
+        .hr-hotel-name { font-family: 'Inter', sans-serif; font-weight: 900; font-size: 22px; color: #000; margin-bottom: 4px; line-height: 1.2; }
+        .hr-hotel-name:hover { color: #008cff; }
+        .hr-hotel-loc { display: flex; align-items: center; gap: 5px; font-size: 13px; color: #4a4a4a; margin-bottom: 12px; }
+        .hr-amenities { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+        .hr-amenity { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #4a4a4a; }
+        .hr-amenity svg { color: #22c55e; }
+        .hr-meal-badge { display: inline-flex; align-items: center; gap: 5px; color: #eb6110; font-size: 12px; font-weight: 700; margin-bottom: 12px;}
+        
+        .hr-price-block { text-align: right; width: 100%; margin-bottom: 16px;}
+        .hr-price-strike { font-size: 14px; color: #9b9b9b; text-decoration: line-through; margin-bottom: 2px; }
+        .hr-price-big { font-family: 'Inter', sans-serif; font-weight: 900; font-size: 28px; color: #000; line-height: 1; margin-bottom: 4px; }
+        .hr-price-taxes { font-size: 12px; color: #4a4a4a; margin-bottom: 4px; }
+        .hr-book-btn { background: linear-gradient(93deg,#ef6614,#d51226); color: #fff; border: none; border-radius: 30px; padding: 10px 28px; font-size: 15px; font-weight: 700; cursor: pointer; transition: all 0.2s; width: 100%; text-transform: uppercase; }
+        .hr-book-btn:hover { box-shadow: 0 4px 10px rgba(213,18,38,0.3); }
+        .hr-price-per-night { font-size: 12px; color: #4a4a4a; margin-bottom: 2px;}
+        
+        @media(max-width: 700px) { .hr-card { flex-direction: column; } .hr-card-body { flex-direction: column; } .hr-card-right { width: 100%; border-left: none; border-top: 1px solid #e2e8f0; align-items: flex-start; background: #fff;} .hr-price-block { text-align: left; } .hr-card-img { width: 100%; height: auto; } }
+        /* Loading */
+        .hr-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 20px; gap: 20px; }
+        .hr-spinner { width: 56px; height: 56px; border: 4px solid #f1f5f9; border-top-color: #ef6614; border-radius: 50%; animation: hr-spin 0.8s linear infinite; }
+        @keyframes hr-spin { to { transform: rotate(360deg); } }
+        .hr-empty { text-align: center; padding: 60px 20px; background: #fff; border-radius: 4px; }
+      `}</style>
+
+      <div className="hr-page">
+        {/* Top Bar */}
+        <div className="hr-topbar">
+          <div className="hr-topbar-inner">
+            <div className="hr-breadcrumb">
+              <span style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>Home</span>
+              <span>›</span>
+              <span>Hotels</span>
+              <span>›</span>
+              <span style={{ color: '#fff' }}>{searchState?.cityName}</span>
+            </div>
+            <h1>Hotels in {searchState?.cityName}, {searchState?.cityCountry}</h1>
+            <div className="hr-topbar-meta">
+              <span><Calendar size={14} /> {searchState?.checkIn} → {searchState?.checkOut} ({nights} night{nights > 1 ? 's' : ''})</span>
+              <span><Users size={14} /> {searchState?.rooms} Room · {searchState?.adults} Adult{searchState?.adults > 1 ? 's' : ''}</span>
+              <span style={{ color: '#e8151b', background: 'rgba(232,21,27,0.15)', padding: '2px 10px', borderRadius: '20px', cursor: 'pointer' }}
+                onClick={() => navigate('/', { state: { activeTabId: 'hotels' } })}>
+                <RefreshCw size={12} /> Modify Search
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="hr-content">
+          <button className="hr-mobile-filter-btn" onClick={() => setShowFilters(true)}>
+            <SlidersHorizontal size={18} /> Show Filters
+          </button>
+
+          {/* Sidebar Filters */}
+          <aside className={`hr-sidebar ${showFilters ? 'mobile-open' : ''}`}>
+            <div className="hr-sidebar-card">
+              <div className="hr-sidebar-header">
+                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <SlidersHorizontal size={18} color="#e8151b" /> Filters
+                </span>
+                <X 
+                  size={24} 
+                  color="#1a1a2e" 
+                  onClick={() => setShowFilters(false)} 
+                  style={{ cursor: 'pointer', display: showFilters ? 'block' : 'none' }} 
+                  className="d-md-none" 
+                />
+              </div>
+              <div className="hr-sidebar-body">
+
+                {/* Name Search */}
+                <div className="hr-filter-section">
+                  <div className="hr-filter-title">Search By Hotel</div>
+                  <div style={{ position: 'relative' }}>
+                    <Search size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                    <input type="text" placeholder="Enter Hotel Name" value={hotelNameFilter}
+                      onChange={e => setHotelNameFilter(e.target.value)}
+                      style={{ width: '100%', padding: '12px 36px 12px 12px', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
+                  </div>
+                </div>
+
+                {/* Price Range */}
+                <div className="hr-filter-section">
+                  <div className="hr-filter-title">Price (/Night) <ChevronUp size={16} color="#94a3b8" /></div>
+                  {[
+                    { id: '0-1000', label: 'Less than Rs. 1,000' },
+                    { id: '1001-2000', label: 'Rs. 1,001 to Rs. 2,000' },
+                    { id: '2001-4000', label: 'Rs. 2,001 to Rs. 4,000' },
+                    { id: '4001-7000', label: 'Rs. 4,001 to Rs. 7,000' },
+                    { id: '7001+', label: 'More than Rs. 7,000' }
+                  ].slice(0, showAllPrices ? undefined : 4).map(p => (
+                    <label key={p.id} className="hr-filter-label">
+                      <input type="checkbox" checked={selectedPriceRanges.includes(p.id)} onChange={() => toggleArray(setSelectedPriceRanges, p.id)} />
+                      {p.label}
+                    </label>
+                  ))}
+                  <button className="hr-show-more" onClick={() => setShowAllPrices(!showAllPrices)}>
+                    {showAllPrices ? 'Show less' : 'Show more'} <ChevronDown size={14} style={{ transform: showAllPrices ? 'rotate(180deg)' : 'none' }} />
+                  </button>
+                </div>
+
+                {/* Star Rating */}
+                <div className="hr-filter-section">
+                  <div className="hr-filter-title">Star Rating <ChevronUp size={16} color="#94a3b8" /></div>
+                  {[5, 4, 3, 2, 1].map(s => (
+                    <label key={s} className="hr-filter-label">
+                      <input type="checkbox" checked={selectedStars.includes(s)} onChange={() => toggleStar(s)} />
+                      {s} Star
+                    </label>
+                  ))}
+                </div>
+
+                {/* Guest Rating */}
+                <div className="hr-filter-section">
+                  <div className="hr-filter-title">User Ratings <ChevronUp size={16} color="#94a3b8" /></div>
+                  {['Excellent', 'Very Good', 'Good'].map(r => (
+                    <label key={r} className="hr-filter-label">
+                      <input type="checkbox" checked={selectedGuestRatings.includes(r)} onChange={() => toggleArray(setSelectedGuestRatings, r)} />
+                      {r}
+                    </label>
+                  ))}
+                </div>
+
+                {/* Property Type */}
+                <div className="hr-filter-section">
+                  <div className="hr-filter-title">Property Type <ChevronUp size={16} color="#94a3b8" /></div>
+                  {['Hotel', 'Resort', 'Villa', 'Apartment', 'Hostel', 'Guesthouse'].slice(0, showAllPropertyTypes ? undefined : 4).map(t => (
+                    <label key={t} className="hr-filter-label">
+                      <input type="checkbox" checked={selectedPropertyTypes.includes(t.toLowerCase())} onChange={() => toggleArray(setSelectedPropertyTypes, t.toLowerCase())} />
+                      {t}
+                    </label>
+                  ))}
+                  <button className="hr-show-more" onClick={() => setShowAllPropertyTypes(!showAllPropertyTypes)}>
+                    {showAllPropertyTypes ? 'Show less' : 'Show more'} <ChevronDown size={14} style={{ transform: showAllPropertyTypes ? 'rotate(180deg)' : 'none' }} />
+                  </button>
+                </div>
+
+                {/* Amenities */}
+                <div className="hr-filter-section" style={{ borderBottom: 'none' }}>
+                  <div className="hr-filter-title">Amenities <ChevronUp size={16} color="#94a3b8" /></div>
+                  {['Wifi', 'Pool', 'Spa', 'Parking', 'Gym', 'Restaurant', 'Bar'].slice(0, showAllAmenities ? undefined : 4).map(a => (
+                    <label key={a} className="hr-filter-label">
+                      <input type="checkbox" checked={selectedAmenities.includes(a)} onChange={() => toggleArray(setSelectedAmenities, a)} />
+                      {a}
+                    </label>
+                  ))}
+                  <button className="hr-show-more" onClick={() => setShowAllAmenities(!showAllAmenities)}>
+                    {showAllAmenities ? 'Show less' : 'Show more'} <ChevronDown size={14} style={{ transform: showAllAmenities ? 'rotate(180deg)' : 'none' }} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          {/* Main Content */}
+          <main>
+            {/* Sort bar */}
+            {!isLoading && !error && (
+              <div className="hr-sortbar">
+                <span className="hr-sort-label">Sort by:</span>
+                {[
+                  { key: 'price_asc', label: 'Price: Low → High' },
+                  { key: 'price_desc', label: 'Price: High → Low' },
+                  { key: 'rating', label: 'Star Rating' },
+                ].map(s => (
+                  <button key={s.key} className={`hr-sort-btn${sortBy === s.key ? ' active' : ''}`}
+                    onClick={() => setSortBy(s.key)}>{s.label}</button>
+                ))}
+                <span className="hr-count">{filteredHotels.length} hotels found</span>
+              </div>
+            )}
+
+            {/* Loading */}
+            {isLoading && (
+              <div className="hr-loading">
+                <div className="hr-spinner"></div>
+                <div style={{ fontFamily: "'Outfit', sans-serif", fontWeight: '700', fontSize: '20px', color: '#1a1a2e' }}>
+                  Searching Hotels in {searchState?.cityName}...
+                </div>
+                <div style={{ color: '#64748b', fontSize: '14px' }}>Checking live availability for your dates</div>
+              </div>
+            )}
+
+            {/* Error */}
+            {!isLoading && error && (
+              <div className="hr-empty">
+                <Building2 size={56} color="#cbd5e1" style={{ marginBottom: '16px' }} />
+                <h3 style={{ fontFamily: "'Outfit', sans-serif", fontWeight: '700', color: '#1a1a2e', marginBottom: '8px' }}>{error}</h3>
+                <button onClick={() => navigate('/', { state: { activeTabId: 'hotels' } })}
+                  style={{ background: '#e8151b', color: '#fff', border: 'none', borderRadius: '10px', padding: '12px 28px', fontWeight: '700', cursor: 'pointer', marginTop: '16px' }}>
+                  Try Another Search
+                </button>
+              </div>
+            )}
+
+            {/* Hotel cards */}
+            {!isLoading && !error && filteredHotels.map((hotel, idx) => {
+              const room = hotel.Rooms?.[0];
+              const price = room?.TotalFare ?? hotel.MinPrice ?? 0;
+              const pricePerNight = nights > 0 ? Math.round(price / nights) : price;
+              const originalPrice = Math.round(pricePerNight * 1.35); // simulated strikethrough
+              const taxes = Math.round(pricePerNight * 0.18); // simulated taxes
+              const isRefundable = room?.IsRefundable ?? hotel.IsRefundable;
+              const mealType = MEAL_TYPES[room?.MealType ?? hotel.MealType] || 'Room Only';
+              const isValidTboImage = hotel.HotelPicture && hotel.HotelPicture.startsWith('http') && !hotel.HotelPicture.includes('HotelNA');
+              const imgUrl = isValidTboImage ? hotel.HotelPicture : 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=400&h=280';
+
+              return (
+                <div key={hotel.HotelCode || idx} className="hr-card" onClick={() => handleSelectHotel(hotel)}>
+                  <div className="hr-card-img">
+                    <img
+                      src={imgUrl}
+                      alt={hotel.HotelName}
+                      onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = 'https://images.unsplash.com/photo-1542314831-c6a4d14d837e?auto=format&fit=crop&w=400&h=280'; }}
+                    />
+                  </div>
+                  <div className="hr-card-body">
+                    <div className="hr-card-middle">
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
+                        <StarRating rating={hotel.HotelRating || 3} />
+                      </div>
+                      <div className="hr-hotel-name">{hotel.HotelName || 'Hotel Name'}</div>
+                      <div className="hr-hotel-loc">
+                        <MapPin size={14} color="#008cff" />
+                        <span style={{ color: '#008cff', fontWeight: '600' }}>{searchState?.cityName || 'City'}</span>
+                        {hotel.HotelAddress ? <span style={{ color: '#4a4a4a' }}> | {hotel.HotelAddress.slice(0,40)}...</span> : ''}
+                      </div>
+                      
+                      {/* Amenities & Badges */}
+                      <div style={{ marginTop: 'auto' }}>
+                        {isRefundable && <span style={{ display: 'inline-block', color: '#22c55e', fontSize: '12px', fontWeight: '700', marginBottom: '8px' }}>✓ Free Cancellation</span>}
+                        {mealType !== 'Room Only' && <div className="hr-meal-badge">{mealType}</div>}
+                        {hotel.HotelFacilities && (
+                          <div className="hr-amenities">
+                            {hotel.HotelFacilities.slice(0, 4).map((fac, i) => (
+                              <span key={i} className="hr-amenity">
+                                {AMENITY_ICONS[fac] || <Building2 size={13} />} {fac}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="hr-card-right">
+                      <div className="hr-price-block">
+                        <div className="hr-price-strike">₹ {originalPrice.toLocaleString()}</div>
+                        <div className="hr-price-big">₹ {pricePerNight.toLocaleString()}</div>
+                        <div className="hr-price-taxes">+ ₹ {taxes.toLocaleString()} taxes & fees</div>
+                        <div className="hr-price-per-night">Per Night</div>
+                      </div>
+                      <button className="hr-book-btn">
+                        VIEW ROOMS
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* No results after filter */}
+            {!isLoading && !error && filteredHotels.length === 0 && hotels.length > 0 && (
+              <div className="hr-empty">
+                <X size={48} color="#cbd5e1" style={{ marginBottom: '16px' }} />
+                <h3 style={{ fontFamily: "'Outfit', sans-serif", fontWeight: '700', color: '#1a1a2e' }}>No hotels match your filters</h3>
+                <button onClick={() => { setSelectedStars([]); setSelectedPriceRanges([]); setRefundableOnly(false); setHotelNameFilter(''); setSelectedAmenities([]); setSelectedPropertyTypes([]); setSelectedGuestRatings([]); }}
+                  style={{ background: '#e8151b', color: '#fff', border: 'none', borderRadius: '10px', padding: '10px 24px', fontWeight: '700', cursor: 'pointer', marginTop: '12px' }}>
+                  Clear Filters
+                </button>
+              </div>
+            )}
+          </main>
+        </div>
+      </div>
+
+      <FooterOne />
+    </>
+  );
+}
