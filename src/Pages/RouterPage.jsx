@@ -1,54 +1,54 @@
-import React from 'react'
+import React, { Suspense, lazy } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
-import HomeOne from './HomeOne'
-
-import About from './About'
 import LoadTop from '../Components/LoadTop'
-import Destination from './Destination'
-import DestinationDetails from './DestinationDetails'
-import Service from './Service'
-import ServiceDetails from './ServiceDetails';
-import Activities from './Activities'
-import RouterPage_ActivitiesDetails from './ActivitiesDetails'
-import Shop from './Shop'
-import ShopDetails from './ShopDetails'
-import Cart from './Cart'
-import Checkout from './Checkout'
-import Wishlist from './Wishlist'
-import Gallery from './Gallery'
-import Tour from './Tour'
-import TourDetails from './TourDetails'
-import Resort from './Resort'
-import ResortDetails from './ResortDetails'
-import FlightResults from './FlightResults'
-import FlightCheckout from './FlightCheckout'
-import BookingConfirmation from './BookingConfirmation'
-import HotelResults from './HotelResults'
-import HotelCheckout from './HotelCheckout'
-import HotelConfirmation from './HotelConfirmation'
-import HotelDetail from './HotelDetail'
-import HotelMyBookings from './HotelMyBookings'
-import MyBookings from './MyBookings'
-import FlightMyBookings from './FlightMyBookings'
-import FlightBookingDetails from './FlightBookingDetails'
-import ManageBooking from './ManageBooking'
-import UserProfile from './UserProfile'
 import CheckCancellationChargesInner from '../Components/Booking/CheckCancellationChargesInner'
 import ReleaseBookingInner from '../Components/Booking/ReleaseBookingInner'
 import TicketChangeRequestInner from '../Components/Booking/TicketChangeRequestInner'
 import TrackChangeRequestInner from '../Components/Booking/TrackChangeRequestInner'
+const HomeOne = lazy(() => import('./HomeOne'));
 
-import Faq from './Faq'
-import Pricing from './Pricing'
-import Error from './Error'
-import Blog from './Blog'
-import BlogDetails from './BlogDetails'
-import Contact from './Contact'
-import AdminLogin from './AdminLogin'
-import AdminDashboard from './AdminDashboard'
-import PrivacyPolicy from './PrivacyPolicy'
-import RefundPolicy from './RefundPolicy'
-import TermsPolicy from './TermsPolicy'
+const About = lazy(() => import('./About'));
+const Destination = lazy(() => import('./Destination'));
+const DestinationDetails = lazy(() => import('./DestinationDetails'));
+const Service = lazy(() => import('./Service'));
+const ServiceDetails = lazy(() => import('./ServiceDetails'));
+const Activities = lazy(() => import('./Activities'));
+const RouterPage_ActivitiesDetails = lazy(() => import('./ActivitiesDetails'));
+const Shop = lazy(() => import('./Shop'));
+const ShopDetails = lazy(() => import('./ShopDetails'));
+const Cart = lazy(() => import('./Cart'));
+const Checkout = lazy(() => import('./Checkout'));
+const Wishlist = lazy(() => import('./Wishlist'));
+const Gallery = lazy(() => import('./Gallery'));
+const Tour = lazy(() => import('./Tour'));
+const TourDetails = lazy(() => import('./TourDetails'));
+const Resort = lazy(() => import('./Resort'));
+const ResortDetails = lazy(() => import('./ResortDetails'));
+const FlightResults = lazy(() => import('./FlightResults'));
+const FlightCheckout = lazy(() => import('./FlightCheckout'));
+const BookingConfirmation = lazy(() => import('./BookingConfirmation'));
+const HotelResults = lazy(() => import('./HotelResults'));
+const HotelCheckout = lazy(() => import('./HotelCheckout'));
+const HotelConfirmation = lazy(() => import('./HotelConfirmation'));
+const HotelDetail = lazy(() => import('./HotelDetail'));
+const HotelMyBookings = lazy(() => import('./HotelMyBookings'));
+const MyBookings = lazy(() => import('./MyBookings'));
+const FlightMyBookings = lazy(() => import('./FlightMyBookings'));
+const FlightBookingDetails = lazy(() => import('./FlightBookingDetails'));
+const ManageBooking = lazy(() => import('./ManageBooking'));
+const UserProfile = lazy(() => import('./UserProfile'));
+
+const Faq = lazy(() => import('./Faq'));
+const Pricing = lazy(() => import('./Pricing'));
+const Error = lazy(() => import('./Error'));
+const Blog = lazy(() => import('./Blog'));
+const BlogDetails = lazy(() => import('./BlogDetails'));
+const Contact = lazy(() => import('./Contact'));
+const AdminLogin = lazy(() => import('./AdminLogin'));
+const AdminDashboard = lazy(() => import('./AdminDashboard'));
+const PrivacyPolicy = lazy(() => import('./PrivacyPolicy'));
+const RefundPolicy = lazy(() => import('./RefundPolicy'));
+const TermsPolicy = lazy(() => import('./TermsPolicy'));
 
 
 function RouterPage() {
@@ -56,7 +56,8 @@ function RouterPage() {
     <div>
       <Router>
         <LoadTop />
-        <Routes>
+        <Suspense fallback={<div className="preloader"><div className="preloader-inner"><span className="loader"></span></div></div>}>
+          <Routes>
           <Route path="/" element={<HomeOne />}></Route>
 
           <Route path="/about" element={<About />}></Route>
@@ -109,6 +110,7 @@ function RouterPage() {
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
         </Routes>
+        </Suspense>
       </Router>
     </div>
   )

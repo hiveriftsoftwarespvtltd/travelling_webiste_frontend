@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
@@ -884,7 +884,7 @@ function AdminDashboard() {
                                                         <div className="d-flex gap-2">
                                                             <input type="text" className="form-control" value={destinationForm.image || ''} onChange={(e) => setDestinationForm({ ...destinationForm, image: e.target.value })} required />
                                                             <div style={{ position: 'relative' }}>
-                                                                <button type="button" className="th-btn" style={{ padding: '0 10px', height: '100%' }}>â†‘</button>
+                                                                <button type="button" className="th-btn" style={{ padding: '0 10px', height: '100%' }}><i className="fa-solid fa-arrow-up"></i></button>
                                                                 <input type="file" onChange={(e) => handleImageUpload(e, (url) => setDestinationForm({ ...destinationForm, image: url }))} style={{ position: 'absolute', top: 0, left: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer' }} />
                                                             </div>
                                                         </div>
@@ -899,7 +899,7 @@ function AdminDashboard() {
                                                         <div className="d-flex gap-2">
                                                             <input type="text" className="form-control" value={destinationForm.bannerImg || ''} onChange={(e) => setDestinationForm({ ...destinationForm, bannerImg: e.target.value })} />
                                                             <div style={{ position: 'relative' }}>
-                                                                <button type="button" className="th-btn" style={{ padding: '0 10px', height: '100%' }}>â†‘</button>
+                                                                <button type="button" className="th-btn" style={{ padding: '0 10px', height: '100%' }}><i className="fa-solid fa-arrow-up"></i></button>
                                                                 <input type="file" onChange={(e) => handleImageUpload(e, (url) => setDestinationForm({ ...destinationForm, bannerImg: url }))} style={{ position: 'absolute', top: 0, left: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer' }} />
                                                             </div>
                                                         </div>
@@ -979,7 +979,7 @@ function AdminDashboard() {
                                                         <div className="d-flex gap-2">
                                                             <input type="text" className="form-control" value={destinationForm.innerImage || ''} onChange={(e) => setDestinationForm({ ...destinationForm, innerImage: e.target.value })} />
                                                             <div style={{ position: 'relative' }}>
-                                                                <button type="button" className="th-btn" style={{ padding: '0 10px', height: '100%' }}>â†‘</button>
+                                                                <button type="button" className="th-btn" style={{ padding: '0 10px', height: '100%' }}><i className="fa-solid fa-arrow-up"></i></button>
                                                                 <input type="file" onChange={(e) => handleImageUpload(e, (url) => setDestinationForm({ ...destinationForm, innerImage: url }))} style={{ position: 'absolute', top: 0, left: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer' }} />
                                                             </div>
                                                         </div>

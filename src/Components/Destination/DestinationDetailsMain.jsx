@@ -225,68 +225,6 @@ function DestinationDetailsMain() {
                                     </div>
                                 </div>
                             )}
-                            <div className="th-comments-wrap style2 ">
-                                <h2 className="blog-inner-title h4">Reviews ({reviews.length})</h2>
-                                <ul className="comment-list">
-                                    {reviews.map(review => (
-                                        <li key={review._id} className="th-comment-item">
-                                            <div className="th-post-comment">
-                                                <div className="comment-avater">
-                                                    <img src="/assets/img/blog/comment-author-1.jpg" alt="Comment Author" />
-                                                </div>
-                                                <div className="comment-content">
-                                                    <h3 className="name">{review.name}</h3>
-                                                    <div className="commented-wrapp">
-                                                        <span className="commented-on">{new Date(review.createdAt).toLocaleDateString()}</span>
-                                                        <span className="comment-review">
-                                                            {[...Array(review.rating || 5)].map((_, i) => <i key={i} className="fa-solid fa-star" />)}
-                                                        </span>
-                                                    </div>
-                                                    <p className="text">{review.comment}</p>
-                                                    <div className="reply_and_edit">
-                                                        <i className="fa-solid fa-thumbs-up" />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </li>
-                                    ))}
-                                    {reviews.length === 0 && <p className="text-muted mt-3">No reviews yet. Be the first to review!</p>}
-                                </ul>
-                            </div>{" "}
-                            {/* Comment end */} {/* Comment Form */}
-                            <div className="th-comment-form ">
-                                <form className="row" onSubmit={handleReviewSubmit}>
-                                    <h3 className="blog-inner-title h4 mb-2">Leave a Reply</h3>
-                                    <p className="mb-25">Your email address will not be published. Required fields are marked *</p>
-                                    
-                                    <div className="col-12 form-group mb-3">
-                                        <label>Rating (1-5)</label>
-                                        <input type="number" min="1" max="5" className="form-control" value={reviewForm.rating} onChange={(e) => setReviewForm({...reviewForm, rating: parseInt(e.target.value)})} required />
-                                    </div>
-                                    <div className="col-md-6 form-group">
-                                        <input type="text" placeholder="Full Name*" className="form-control" value={reviewForm.name} onChange={(e) => setReviewForm({...reviewForm, name: e.target.value})} required />
-                                        <i className="far fa-user" />
-                                    </div>
-                                    <div className="col-md-6 form-group">
-                                        <input type="email" placeholder="Your Email*" className="form-control" value={reviewForm.email} onChange={(e) => setReviewForm({...reviewForm, email: e.target.value})} required />
-                                        <i className="far fa-envelope" />
-                                    </div>
-                                    <div className="col-12 form-group">
-                                        <input type="url" placeholder="Website" className="form-control" value={reviewForm.website} onChange={(e) => setReviewForm({...reviewForm, website: e.target.value})} />
-                                        <i className="far fa-globe" />
-                                    </div>
-                                    <div className="col-12 form-group">
-                                        <textarea placeholder="Comment*" className="form-control" value={reviewForm.comment} onChange={(e) => setReviewForm({...reviewForm, comment: e.target.value})} required />
-                                        <i className="far fa-pencil" />
-                                    </div>
-                                    <div className="col-12 form-group mb-0 mt-3">
-                                        <button type="submit" className="th-btn">
-                                            Send Message
-                                            <img src="/assets/img/icon/plane2.svg" alt="" />
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
                         </div>
                     </div>
                     <div className="col-xxl-4 col-lg-5">
