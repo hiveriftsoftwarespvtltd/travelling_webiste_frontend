@@ -180,7 +180,7 @@ function FlightSidebar({
     );
 
     return (
-        <div ref={wrapRef} style={{ position: 'relative', zIndex: 300, marginBottom: '14px', marginTop: '0', fontFamily: "'Outfit','Inter',sans-serif", width: '100%', boxSizing: 'border-box' }}>
+        <div ref={wrapRef} style={{ position: 'relative', zIndex: isPanelOpen ? 1100 : 300, marginBottom: '14px', marginTop: '0', fontFamily: "'Outfit','Inter',sans-serif", width: '100%', boxSizing: 'border-box' }}>
 
             {/* ═══ CSS ══════════════════════════════════════════ */}
             <style>{`
@@ -218,86 +218,88 @@ function FlightSidebar({
             `}</style>
 
             {/* ═══ TOP FILTER BAR ═══════════════════════════════ */}
-            <div className="flt-top-bar" style={{ borderBottom: isPanelOpen ? '1px solid #edf0f5' : '1px solid #e4e7ed' }}>
+            <div className="flt-top-bar" style={{ borderBottom: isPanelOpen ? '1px solid #edf0f5' : '1px solid #e4e7ed', justifyContent: 'center' }}>
+                <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', width: '100%', alignItems: 'stretch' }}>
 
-                {/* ── Filters icon label ── */}
-                <button
-                    onClick={() => isPanelOpen ? handleCancel() : openPanel()}
-                    style={{
-                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                        gap: '2px', padding: '0 16px', background: isPanelOpen ? '#f0f3f9' : 'none',
-                        border: 'none', borderRight: '1px solid #e8edf2', cursor: 'pointer',
-                        color: isPanelOpen ? '#1a3c6e' : '#1a1a2e', transition: 'background 0.15s', flexShrink: 0,
-                    }}
-                    className="flt-bar-btn">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-                    </svg>
-                    <span style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.2px' }}>Filters</span>
-                    {hasAny && <span style={{ position: 'absolute', top: '6px', right: '4px', width: '7px', height: '7px', borderRadius: '50%', background: '#d81b21' }} />}
-                </button>
-
-                <div className="flt-desktop-only">
-                    {/* ── Stops ── */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '0 18px', borderRight: '1px solid #e8edf2', flexShrink: 0 }}>
-                    <span style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a2e', marginRight: '2px' }}>Stops:</span>
-                    {STOP_OPTIONS.map(s => {
-                        const act = (af.stops || []).includes(s.id);
-                        return (
-                            <button key={s.id} onClick={() => onStopToggle(s.id)} className="flt-stop-btn"
-                                style={{ width: '30px', height: '30px', borderRadius: '5px', border: `1.5px solid ${act ? '#1a3c6e' : '#c8d0db'}`, background: act ? '#1a3c6e' : '#fff', color: act ? '#fff' : '#3a4a5c', fontWeight: '700', fontSize: '13px', cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                {s.label}
-                            </button>
-                        );
-                    })}
-                </div>
-
-                {/* ── Price ▼ ── */}
-                <button onClick={openPanel} className="flt-bar-btn"
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', padding: '0 18px', height: '100%', background: priceActive ? '#f0f3f9' : 'none', border: 'none', borderRight: '1px solid #e8edf2', cursor: 'pointer', color: '#1a1a2e', fontWeight: '600', fontSize: '13px', fontFamily: "'Outfit','Inter',sans-serif", whiteSpace: 'nowrap', flex: 1 }}>
-                    Price
-                    {priceActive && <span style={{ background: '#1a3c6e', color: '#fff', borderRadius: '10px', padding: '1px 6px', fontSize: '10px', fontWeight: '800' }}>1</span>}
-                    <Chevron open={isPanelOpen} />
-                </button>
-
-                {/* ── Depart Time ▼ ── */}
-                <button onClick={openPanel} className="flt-bar-btn"
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', padding: '0 18px', height: '100%', background: dtCount > 0 ? '#f0f3f9' : 'none', border: 'none', borderRight: '1px solid #e8edf2', cursor: 'pointer', color: '#1a1a2e', fontWeight: '600', fontSize: '13px', fontFamily: "'Outfit','Inter',sans-serif", whiteSpace: 'nowrap', flex: 1 }}>
-                    Depart Time
-                    {dtCount > 0 && <span style={{ background: '#1a3c6e', color: '#fff', borderRadius: '10px', padding: '1px 6px', fontSize: '10px', fontWeight: '800' }}>{dtCount}</span>}
-                    <Chevron open={isPanelOpen} />
-                </button>
-
-                {/* ── Airlines ▼ ── */}
-                <button onClick={openPanel} className="flt-bar-btn"
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', padding: '0 18px', height: '100%', background: airlineCount > 0 ? '#f0f3f9' : 'none', border: 'none', borderRight: '1px solid #e8edf2', cursor: 'pointer', color: '#1a1a2e', fontWeight: '600', fontSize: '13px', fontFamily: "'Outfit','Inter',sans-serif", whiteSpace: 'nowrap', flex: 1 }}>
-                    Airlines
-                    {airlineCount > 0 && <span style={{ background: '#1a3c6e', color: '#fff', borderRadius: '10px', padding: '1px 6px', fontSize: '10px', fontWeight: '800' }}>{airlineCount}</span>}
-                    <Chevron open={isPanelOpen} />
-                </button>
-
-                {/* ── Aircraft ▼ ── */}
-                <button onClick={openPanel} className="flt-bar-btn"
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', padding: '0 18px', height: '100%', background: acCount > 0 ? '#f0f3f9' : 'none', border: 'none', borderRight: '1px solid #e8edf2', cursor: 'pointer', color: '#1a1a2e', fontWeight: '600', fontSize: '13px', fontFamily: "'Outfit','Inter',sans-serif", whiteSpace: 'nowrap', flex: 1 }}>
-                    Aircraft
-                    {acCount > 0 && <span style={{ background: '#1a3c6e', color: '#fff', borderRadius: '10px', padding: '1px 6px', fontSize: '10px', fontWeight: '800' }}>{acCount}</span>}
-                    <Chevron open={isPanelOpen} />
-                </button>
-
-                {/* ── More Filters ▼ ── */}
-                <button onClick={openPanel} className="flt-bar-btn"
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', padding: '0 18px', height: '100%', background: 'none', border: 'none', cursor: 'pointer', color: '#1a5cba', fontWeight: '700', fontSize: '13px', fontFamily: "'Outfit','Inter',sans-serif", whiteSpace: 'nowrap', flex: 1 }}>
-                    More Filters
-                    <Chevron open={isPanelOpen} />
-                </button>
-
-                {/* ── Clear all (far right) ── */}
-                {hasAny && (
-                    <button onClick={handleClearAll}
-                        style={{ marginLeft: 'auto', padding: '0 16px', background: 'none', border: 'none', borderLeft: '1px solid #e8edf2', color: '#d81b21', fontSize: '12px', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: "'Outfit','Inter',sans-serif" }}>
-                        Clear All
+                    {/* ── Filters icon label ── */}
+                    <button
+                        onClick={() => isPanelOpen ? handleCancel() : openPanel()}
+                        style={{
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                            gap: '2px', padding: '0 16px', background: isPanelOpen ? '#f0f3f9' : 'none',
+                            border: 'none', borderRight: '1px solid #e8edf2', cursor: 'pointer',
+                            color: isPanelOpen ? '#1a3c6e' : '#1a1a2e', transition: 'background 0.15s', flexShrink: 0,
+                        }}
+                        className="flt-bar-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                        </svg>
+                        <span style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.2px' }}>Filters</span>
+                        {hasAny && <span style={{ position: 'absolute', top: '6px', right: '4px', width: '7px', height: '7px', borderRadius: '50%', background: '#d81b21' }} />}
                     </button>
-                )}
+
+                    <div className="flt-desktop-only" style={{ display: 'flex', flex: 1 }}>
+                        {/* ── Stops ── */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '0 18px', borderRight: '1px solid #e8edf2', flexShrink: 0 }}>
+                        <span style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a2e', marginRight: '2px' }}>Stops:</span>
+                        {STOP_OPTIONS.map(s => {
+                            const act = (af.stops || []).includes(s.id);
+                            return (
+                                <button key={s.id} onClick={() => onStopToggle(s.id)} className="flt-stop-btn"
+                                    style={{ width: '30px', height: '30px', borderRadius: '5px', border: `1.5px solid ${act ? '#1a3c6e' : '#c8d0db'}`, background: act ? '#1a3c6e' : '#fff', color: act ? '#fff' : '#3a4a5c', fontWeight: '700', fontSize: '13px', cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    {s.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {/* ── Price ▼ ── */}
+                    <button onClick={openPanel} className="flt-bar-btn"
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', padding: '0 18px', height: '100%', background: priceActive ? '#f0f3f9' : 'none', border: 'none', borderRight: '1px solid #e8edf2', cursor: 'pointer', color: '#1a1a2e', fontWeight: '600', fontSize: '13px', fontFamily: "'Outfit','Inter',sans-serif", whiteSpace: 'nowrap', flex: 1 }}>
+                        Price
+                        {priceActive && <span style={{ background: '#1a3c6e', color: '#fff', borderRadius: '10px', padding: '1px 6px', fontSize: '10px', fontWeight: '800' }}>1</span>}
+                        <Chevron open={isPanelOpen} />
+                    </button>
+
+                    {/* ── Depart Time ▼ ── */}
+                    <button onClick={openPanel} className="flt-bar-btn"
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', padding: '0 18px', height: '100%', background: dtCount > 0 ? '#f0f3f9' : 'none', border: 'none', borderRight: '1px solid #e8edf2', cursor: 'pointer', color: '#1a1a2e', fontWeight: '600', fontSize: '13px', fontFamily: "'Outfit','Inter',sans-serif", whiteSpace: 'nowrap', flex: 1 }}>
+                        Depart Time
+                        {dtCount > 0 && <span style={{ background: '#1a3c6e', color: '#fff', borderRadius: '10px', padding: '1px 6px', fontSize: '10px', fontWeight: '800' }}>{dtCount}</span>}
+                        <Chevron open={isPanelOpen} />
+                    </button>
+
+                    {/* ── Airlines ▼ ── */}
+                    <button onClick={openPanel} className="flt-bar-btn"
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', padding: '0 18px', height: '100%', background: airlineCount > 0 ? '#f0f3f9' : 'none', border: 'none', borderRight: '1px solid #e8edf2', cursor: 'pointer', color: '#1a1a2e', fontWeight: '600', fontSize: '13px', fontFamily: "'Outfit','Inter',sans-serif", whiteSpace: 'nowrap', flex: 1 }}>
+                        Airlines
+                        {airlineCount > 0 && <span style={{ background: '#1a3c6e', color: '#fff', borderRadius: '10px', padding: '1px 6px', fontSize: '10px', fontWeight: '800' }}>{airlineCount}</span>}
+                        <Chevron open={isPanelOpen} />
+                    </button>
+
+                    {/* ── Aircraft ▼ ── */}
+                    <button onClick={openPanel} className="flt-bar-btn"
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', padding: '0 18px', height: '100%', background: acCount > 0 ? '#f0f3f9' : 'none', border: 'none', borderRight: '1px solid #e8edf2', cursor: 'pointer', color: '#1a1a2e', fontWeight: '600', fontSize: '13px', fontFamily: "'Outfit','Inter',sans-serif", whiteSpace: 'nowrap', flex: 1 }}>
+                        Aircraft
+                        {acCount > 0 && <span style={{ background: '#1a3c6e', color: '#fff', borderRadius: '10px', padding: '1px 6px', fontSize: '10px', fontWeight: '800' }}>{acCount}</span>}
+                        <Chevron open={isPanelOpen} />
+                    </button>
+
+                    {/* ── More Filters ▼ ── */}
+                    <button onClick={openPanel} className="flt-bar-btn"
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', padding: '0 18px', height: '100%', background: 'none', border: 'none', cursor: 'pointer', color: '#1a5cba', fontWeight: '700', fontSize: '13px', fontFamily: "'Outfit','Inter',sans-serif", whiteSpace: 'nowrap', flex: 1 }}>
+                        More Filters
+                        <Chevron open={isPanelOpen} />
+                    </button>
+
+                    {/* ── Clear all (far right) ── */}
+                    {hasAny && (
+                        <button onClick={handleClearAll}
+                            style={{ marginLeft: 'auto', padding: '0 16px', background: 'none', border: 'none', borderLeft: '1px solid #e8edf2', color: '#d81b21', fontSize: '12px', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: "'Outfit','Inter',sans-serif" }}>
+                            Clear All
+                        </button>
+                    )}
+                    </div>
                 </div>
             </div>
 

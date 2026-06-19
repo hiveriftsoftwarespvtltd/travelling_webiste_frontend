@@ -130,7 +130,7 @@ export default function ModifyFlightSearchBar({ initialState }) {
         color:        '#fff',
         boxShadow:    '0 4px 12px rgba(0,0,0,0.12)',
         position:     'relative',
-        zIndex:       100,
+        zIndex:       1000,
         paddingBottom: 0,
       }}
     >
@@ -161,14 +161,30 @@ export default function ModifyFlightSearchBar({ initialState }) {
         .react-datepicker__navigation-icon::before { border-color:#fff !important; }
         .ms-check-row { display:flex; align-items:center; gap:6px; font-size:12px; font-weight:500; color:rgba(255,255,255,0.8); cursor:pointer; white-space:nowrap; }
         .ms-check-row input[type=checkbox] { accent-color:#fff; cursor:pointer; width:13px; height:13px; }
+
+        @media(max-width: 768px) {
+            .ms-row { gap: 12px; padding-bottom: 20px; }
+            .ms-col { min-width: 45%; max-width: 100% !important; }
+            .ms-col:nth-child(7) { min-width: 100%; max-width: 100% !important; } /* Travellers class should be full width to avoid cut off */
+            .ms-val { white-space: normal; word-wrap: break-word; line-height: 1.2; }
+            .ms-row > div:last-child { width: 100%; margin-top: 10px; }
+            .ms-row > div:last-child button { width: 100%; padding: 14px 0; font-size: 16px; }
+            .ms-dropdown { position: fixed; top: auto; bottom: 0; left: 0; width: 100% !important; border-radius: 16px 16px 0 0; box-shadow: 0 -4px 20px rgba(0,0,0,0.2); }
+        }
       `}</style>
 
       {/* ── Row 1: Trip type selector ── */}
       <div className="container" style={{ maxWidth: '1200px', margin: '0 auto', padding: '10px 20px 8px 20px', display: 'flex', alignItems: 'center', gap: '24px' }}>
-        {[{ val: 1, label: 'One Way' }, { val: 2, label: 'Round Trip' }, { val: 3, label: 'Multicity' }].map(t => (
-          <label key={t.val} className="ms-trip-radio">
-            <input type="radio" name="journeyType" value={t.val} checked={journeyType === t.val} onChange={() => setJourneyType(t.val)} />
-            {t.label}
+        {[{ val: 1, label: 'One Way' }, { val: 2, label: 'Round Trip' }].map(t => (
+          <label key={t.val} className="ms-trip-radio" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{
+              width: '16px', height: '16px', borderRadius: '50%', border: '2px solid rgba(255,255,255,0.8)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent'
+            }}>
+              {journeyType === t.val && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#fff' }} />}
+            </div>
+            <span style={{ color: journeyType === t.val ? '#fff' : 'rgba(255,255,255,0.8)' }}>{t.label}</span>
+            <input type="radio" name="journeyType" value={t.val} checked={journeyType === t.val} onChange={() => setJourneyType(t.val)} style={{ display: 'none' }} />
           </label>
         ))}
       </div>

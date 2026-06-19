@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import FooterOne from '../Components/Footer/FooterOne';
+import LoginForm from '../Components/Header/LoginForm';
 import { ShieldAlert, Loader2, Plane, Calendar, Clock, User, Phone, Mail, Luggage, Building, ShieldCheck, Utensils, PlusCircle, CheckCircle2 } from 'lucide-react';
 
 function FlightCheckout() {
@@ -12,8 +13,9 @@ function FlightCheckout() {
     const [ssrData, setSsrData] = useState(null);
     const [priceChangedAlert, setPriceChangedAlert] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
-    // ✅ Stores the ResultIndex from FareQuote response (TBO requires this for Book/Ticket)
+    // ✅ Stores the ResultIndex from FareQuote response — stored in a ref to avoid stale closure in Razorpay handler
     const [confirmedResultIndex, setConfirmedResultIndex] = useState(null);
+    const confirmedResultIndexRef = useRef(null);
 
     // Add-on states (Yatra-style per passenger per sector)
     const [selectedSSR, setSelectedSSR] = useState({});
@@ -24,7 +26,18 @@ function FlightCheckout() {
     const [passengers, setPassengers] = useState([]);
     const [contactEmail, setContactEmail] = useState('');
     const [contactPhone, setContactPhone] = useState('');
+    const [contactCountryCode, setContactCountryCode] = useState('+91');
+    const [validationError, setValidationError] = useState('');
     const [isBooking, setIsBooking] = useState(false);
+    const [paymentStatus, setPaymentStatus] = useState('idle'); // 'idle' | 'paying' | 'verifying' | 'booking'
+    const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+    const [isLoginFormOpen, setIsLoginFormOpen] = useState(false);
+
+    useEffect(() => {
+        const openLogin = () => setIsLoginFormOpen(true);
+        window.addEventListener('openLoginModal', openLogin);
+        return () => window.removeEventListener('openLoginModal', openLogin);
+    }, []);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -80,7 +93,10 @@ function FlightCheckout() {
                     const results = quoteData.Response.Results;
                     setFareQuoteData(results);
                     // ✅ Save the FareQuote's ResultIndex — TBO requires THIS for Book/Ticket (not the search ResultIndex)
-                    setConfirmedResultIndex(results?.ResultIndex || state.ResultIndex);
+                    const riFromQuote = results?.ResultIndex || state.ResultIndex;
+                    setConfirmedResultIndex(riFromQuote);
+                    confirmedResultIndexRef.current = riFromQuote; // ← ref for Razorpay stale-closure fix
+
                     if (quoteData.Response.IsPriceChanged) setPriceChangedAlert(true);
                 } else {
                     throw new Error('Seat not available or pricing failed.');
@@ -113,6 +129,18 @@ function FlightCheckout() {
 
         fetchData();
     }, [location.state, navigate]);
+
+    // Load Razorpay checkout script dynamically
+    useEffect(() => {
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        document.body.appendChild(script);
+        return () => {
+            // cleanup if component unmounts
+            document.body.removeChild(script);
+        };
+    }, []);
 
     // Initialize passenger form states based on FareBreakdown
     useEffect(() => {
@@ -338,9 +366,18 @@ function FlightCheckout() {
         setPassengers(updated);
     };
 
-    const handleBookFlight = async (e) => {
-        e.preventDefault();
+    const handleBookFlight = async () => {
+        setValidationError('');
+        if (isBooking) return;
         setIsBooking(true);
+
+        if (!localStorage.getItem('token')) {
+            setShowLoginPrompt(true);
+            setIsBooking(false);
+            return;
+        }
+
+        setPaymentStatus('idle');
 
         try {
             // Validate that all passengers have required fields
@@ -355,6 +392,146 @@ function FlightCheckout() {
 
             if (!contactEmail || !contactPhone) {
                 throw new Error('Please provide contact email and phone number.');
+            }
+            if (contactPhone.length < 10) {
+                throw new Error('Please enter a valid phone number (minimum 10 digits).');
+            }
+
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(contactEmail)) {
+                throw new Error('Please enter a valid email address.');
+            }
+
+            // ─── STEP 1: Create Razorpay Order on Backend ───────────────────────────
+            setPaymentStatus('paying');
+            const flightApiBase = process.env.REACT_APP_FLIGHT_API_BASE_URL || 'http://localhost:8009/api/flight';
+            // Derive payment base from flight base: strip '/flight' and replace with '/payment'
+            const backendBase = flightApiBase.substring(0, flightApiBase.lastIndexOf('/'));  // → http://localhost:8009/api
+            const paymentApiBase = `${backendBase}/payment`;                                  // → http://localhost:8009/api/payment
+
+            const orderRes = await fetch(`${paymentApiBase}/create-order`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    amount: totalFare,
+                    receipt: `JIYOLIFE-${Date.now()}`,
+                    currency: 'INR',
+                }),
+            });
+            const orderData = await orderRes.json();
+
+            if (!orderData.success || !orderData.orderId) {
+                throw new Error(orderData.message || 'Failed to create payment order. Please try again.');
+            }
+
+            // ─── STEP 2: Open Razorpay Payment Modal ────────────────────────────────
+            await new Promise((resolve, reject) => {
+                if (!window.Razorpay) {
+                    reject(new Error('Razorpay SDK failed to load. Please refresh the page and try again.'));
+                    return;
+                }
+
+                const rzpOptions = {
+                    key: orderData.keyId,
+                    amount: orderData.amount,
+                    currency: orderData.currency,
+                    name: 'Jiyo Life Travel',
+                    description: `Flight Booking — ${firstLeg?.Origin?.Airport?.CityCode} → ${lastLeg?.Destination?.Airport?.CityCode}`,
+                    order_id: orderData.orderId,
+                    prefill: {
+                        name: `${passengers[0]?.FirstName || ''} ${passengers[0]?.LastName || ''}`.trim(),
+                        email: contactEmail,
+                        contact: contactCountryCode + contactPhone,
+                    },
+                    theme: {
+                        color: '#e8151b',
+                    },
+                    // Allow all available payment methods (UPI, Net Banking, Cards, Wallets, QR, etc.)
+                    config: {
+                        display: {
+                            blocks: {
+                                banks: { name: 'Pay via Net Banking', instruments: [{ method: 'netbanking' }] },
+                                upi:   { name: 'Pay via UPI', instruments: [{ method: 'upi' }] },
+                                card:  { name: 'Pay via Card', instruments: [{ method: 'card' }] },
+                                wallet:{ name: 'Pay via Wallet', instruments: [{ method: 'wallet' }] },
+                            },
+                            sequence: ['block.upi', 'block.card', 'block.banks', 'block.wallet'],
+                            preferences: { show_default_blocks: true },
+                        },
+                    },
+                    handler: async (response) => {
+                        // Payment was successful — verify on backend before booking
+                        try {
+                            setPaymentStatus('verifying');
+                            const verifyRes = await fetch(`${paymentApiBase}/verify`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    razorpay_order_id: response.razorpay_order_id,
+                                    razorpay_payment_id: response.razorpay_payment_id,
+                                    razorpay_signature: response.razorpay_signature,
+                                }),
+                            });
+                            const verifyData = await verifyRes.json();
+                            if (verifyData.success) {
+                                resolve(verifyData); // Proceed to TBO booking
+                            } else {
+                                reject(new Error('Payment verification failed. Your money is safe and will be refunded.'));
+                            }
+                        } catch (err) {
+                            reject(new Error('Payment verification error: ' + err.message));
+                        }
+                    },
+                    modal: {
+                        ondismiss: () => {
+                            reject(new Error('Payment was cancelled. Your booking was not confirmed.'));
+                        },
+                    },
+                };
+
+                const rzp = new window.Razorpay(rzpOptions);
+                rzp.on('payment.failed', (response) => {
+                    reject(new Error(`Payment failed: ${response.error?.description || 'Unknown error'}. Please try again.`));
+                });
+                rzp.open();
+            });
+
+            // ─── STEP 3: Payment Verified — Run TBO Booking ─────────────────────────
+            setPaymentStatus('booking');
+
+
+            // ✅ CRITICAL FIX: Re-fetch FareQuote after payment to get a FRESH ResultIndex.
+            // TBO session can expire between page load and when the user finishes payment (15-30 mins).
+            // Using a stale ResultIndex causes "Invalid Result Index" error from TBO.
+            try {
+                const flightApiBaseForRefresh = process.env.REACT_APP_FLIGHT_API_BASE_URL || 'http://localhost:8009/api/flight';
+                const originalResultIndices = (confirmedResultIndexRef.current || location.state?.ResultIndex || '').split(',').map(r => r.trim()).filter(Boolean);
+                const refreshedIndices = [];
+                for (const ri of originalResultIndices) {
+                    const refreshRes = await fetch(`${flightApiBaseForRefresh}/fare-quote`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ TraceId: location.state?.TraceId, ResultIndex: ri })
+                    });
+                    if (refreshRes.ok) {
+                        const refreshData = await refreshRes.json();
+                        const freshRI = refreshData?.Response?.Results?.ResultIndex;
+                        if (freshRI) {
+                            refreshedIndices.push(freshRI);
+
+                        } else {
+                            refreshedIndices.push(ri); // fallback to original
+                        }
+                    } else {
+                        refreshedIndices.push(ri); // fallback
+                    }
+                }
+                const freshRI = refreshedIndices.join(',');
+                confirmedResultIndexRef.current = freshRI;
+                setConfirmedResultIndex(freshRI);
+
+            } catch (refreshErr) {
+                console.warn('[FareQuote Refresh] Failed, will use cached RI:', refreshErr.message);
             }
 
             // Map selected SSRs
@@ -392,12 +569,7 @@ function FlightCheckout() {
                     FFNumber: null,
                     Baggage: [],
                     MealDynamic: [],
-                    SeatDynamic: [],
-                    GSTCompanyAddress: "",
-                    GSTCompanyContactNumber: "",
-                    GSTCompanyName: "",
-                    GSTNumber: "",
-                    GSTCompanyEmail: ""
+                    SeatDynamic: []
                 };
 
                 // Assign SSRs explicitly mapped to this passenger
@@ -427,6 +599,10 @@ function FlightCheckout() {
                 if (!fareQuoteData?.IsDomestic) {
                     mappedPax.PassportNo = pax.PassportNo || 'KJHHJKHKJH';
                     mappedPax.PassportExpiry = pax.PassportExpiry ? `${pax.PassportExpiry}T00:00:00` : '2030-12-06T00:00:00';
+                    mappedPax.PassportIssueDate = '2020-01-01T00:00:00'; // Added fallback issue date
+                    mappedPax.DocumentIssuingCountry = 'IN';
+                    mappedPax.PassportIssueCountryCode = 'IN';
+                    mappedPax.PassportIssueCountry = 'IN';
                 } else {
                     delete mappedPax.PassportNo;
                     delete mappedPax.PassportExpiry;
@@ -435,29 +611,37 @@ function FlightCheckout() {
                 return mappedPax;
             });
 
+            const userDataStr = localStorage.getItem("user");
+            let loggedInUserId = '';
+            let loggedInEmail = '';
+            if (userDataStr) {
+                try {
+                    const parsedUser = JSON.parse(userDataStr);
+                    loggedInUserId = parsedUser._id || '';
+                    loggedInEmail = parsedUser.email || '';
+                } catch(e) {}
+            }
+
             const basePayload = {
                 PreferredCurrency: null,
-                AgentReferenceNo: `TOURM-${Date.now()}`,
+                AgentReferenceNo: `JIYOLIFE-${Date.now()}`,
                 TraceId: location.state.TraceId,
+                userId: loggedInUserId,
+                email: loggedInEmail,
                 Passengers: finalPassengers.map(p => ({
                     ...p,
-                    CellCountryCode: "+91-",
+                    CellCountryCode: contactCountryCode,
                     AddressLine2: p.AddressLine2 || "",
                     FFAirlineCode: null,
-                    FFNumber: "",
-                    GSTCompanyAddress: "",
-                    GSTCompanyContactNumber: "",
-                    GSTCompanyName: "",
-                    GSTNumber: "",
-                    GSTCompanyEmail: ""
+                    FFNumber: ""
                 }))
             };
 
             const isLCC = fareQuoteData?.IsLCC || false;
-            const flightApiBase = process.env.REACT_APP_FLIGHT_API_BASE_URL || 'http://localhost:8009/api/flight';
 
-            // ✅ KEY FIX: always use FareQuote's ResultIndex for book/ticket (not stale search index)
-            const confirmedRI = confirmedResultIndex || location.state.ResultIndex;
+            // ✅ KEY FIX: always use FareQuote's ResultIndex (via ref to avoid stale closure)
+            const confirmedRI = confirmedResultIndexRef.current || confirmedResultIndex || location.state.ResultIndex;
+
             const indices = confirmedRI.includes(',')
                 ? confirmedRI.split(',').map(i => i.trim())
                 : [confirmedRI];
@@ -500,7 +684,9 @@ function FlightCheckout() {
                     const ticketPayload = {
                         TraceId: location.state.TraceId,
                         PNR: pnr,
-                        BookingId: bookingId
+                        BookingId: bookingId,
+                        userId: loggedInUserId,
+                        email: loggedInEmail
                     };
 
                     const ticketRes = await fetch(`${flightApiBase}/ticket`, {
@@ -523,10 +709,11 @@ function FlightCheckout() {
             // Success
             navigate('/flight-confirmation', { state: { bookingData: bookingResponses[0], itinerary: fareQuoteData, allBookings: bookingResponses } });
         } catch (err) {
-            console.error(err);
-            alert(`Booking Error: ${err.message}`);
+            console.error('Booking/Validation Error:', err);
+            setValidationError(err.message);
         } finally {
             setIsBooking(false);
+            setPaymentStatus('idle');
         }
     };
 
@@ -546,10 +733,29 @@ function FlightCheckout() {
             <section style={{ background: '#f4f7fa', padding: '40px 0', minHeight: '80vh', fontFamily: "'Inter', sans-serif" }}>
                 <div className="container">
 
+                    {/* Breadcrumbs */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px', fontSize: '14px', color: '#64748b' }}>
+                        <span style={{ cursor: 'pointer', color: '#0ea5e9', fontWeight: '500' }} onClick={() => navigate('/')}>Home</span>
+                        <span>›</span>
+                        <span style={{ cursor: 'pointer', color: '#0ea5e9', fontWeight: '500' }} onClick={() => navigate(-1)}>Flight Results</span>
+                        <span>›</span>
+                        <span style={{ color: '#1a1a2e', fontWeight: '600' }}>Checkout</span>
+                    </div>
+
                     {/* Page Header */}
-                    <div style={{ marginBottom: '30px' }}>
-                        <h2 style={{ fontFamily: "'Outfit', sans-serif", fontWeight: '800', color: '#1a1a2e', margin: 0 }}>Review & Checkout</h2>
-                        <p style={{ color: '#687b8f', marginTop: '4px' }}>Complete your booking in just a few steps.</p>
+                    <div style={{ marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                        <div>
+                            <h2 style={{ fontFamily: "'Outfit', sans-serif", fontWeight: '800', color: '#1a1a2e', margin: 0 }}>Review & Checkout</h2>
+                            <p style={{ color: '#687b8f', marginTop: '4px', marginBottom: 0 }}>Complete your booking in just a few steps.</p>
+                        </div>
+                        <button 
+                            onClick={() => navigate(-1)} 
+                            style={{ background: '#f8fafc', border: '1px solid #cbd5e1', color: '#475569', padding: '10px 20px', borderRadius: '30px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s' }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = '#e2e8f0'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = '#f8fafc'; }}
+                        >
+                            ✏️ Edit Flight
+                        </button>
                     </div>
 
                     {/* Price Change Alert */}
@@ -870,12 +1076,27 @@ function FlightCheckout() {
                                                 </div>
                                             </div>
 
+                                            <style>{`
+                                                .fco-airplane-body { background: #f8fafc; padding: 30px 20px; border-radius: 40px 40px 20px 20px; border: 2px solid #cbd5e1; max-width: 380px; margin: 0 auto; box-shadow: inset 0 4px 6px rgba(0,0,0,0.05); }
+                                                .fco-seat-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+                                                .fco-seat-grp { display: flex; gap: 8px; }
+                                                .fco-seat { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; transition: transform 0.1s; border: 1px solid rgba(0,0,0,0.1); }
+                                                .fco-aisle { width: 30px; text-align: center; font-size: 12px; font-weight: 800; color: #94a3b8; }
+                                                
+                                                @media(max-width: 420px) {
+                                                    .fco-airplane-body { padding: 20px 10px; border-radius: 30px 30px 15px 15px; overflow-x: auto; }
+                                                    .fco-seat-grp { gap: 4px; }
+                                                    .fco-seat { width: 28px; height: 28px; font-size: 10px; border-radius: 6px; }
+                                                    .fco-aisle { width: 22px; font-size: 10px; }
+                                                }
+                                                @media(max-width: 350px) {
+                                                    .fco-seat { width: 25px; height: 25px; font-size: 9px; }
+                                                    .fco-seat-grp { gap: 3px; }
+                                                }
+                                            `}</style>
+
                                             {/* Airplane Body */}
-                                            <div style={{
-                                                background: '#f8fafc', padding: '30px 20px', borderRadius: '40px 40px 20px 20px',
-                                                border: '2px solid #cbd5e1', maxWidth: '380px', margin: '0 auto',
-                                                boxShadow: 'inset 0 4px 6px rgba(0,0,0,0.05)'
-                                            }}>
+                                            <div className="fco-airplane-body">
                                                 {/* Airplane Nose curve */}
                                                 <div style={{ width: '100%', height: '40px', borderBottom: '2px dashed #94a3b8', marginBottom: '30px', opacity: 0.5 }}></div>
 
@@ -889,9 +1110,9 @@ function FlightCheckout() {
                                                     const rightSeats = seats.slice(midPoint);
 
                                                     return (
-                                                        <div key={rowIdx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                                                        <div key={rowIdx} className="fco-seat-row">
                                                             {/* Left Seats */}
-                                                            <div style={{ display: 'flex', gap: '8px' }}>
+                                                            <div className="fco-seat-grp">
                                                                 {leftSeats.map((seat, sIdx) => {
                                                                     const isAvailable = seat.AvailablityType === 1;
                                                                     const isSelectedByMe = getCurrentSSR('seat')?.Code === seat.Code;
@@ -906,14 +1127,11 @@ function FlightCheckout() {
                                                                             key={sIdx}
                                                                             onClick={() => { if (isAvailable && !isTakenByOther) handleSsrToggle('seat', seat); }}
                                                                             title={isSelectedByMe ? `✅ Your seat` : isTakenByOther ? `Taken by another passenger` : `${seat.Code} — ₹${seat.Price}`}
+                                                                            className="fco-seat"
                                                                             style={{
-                                                                                width: '36px', height: '36px', borderRadius: '8px',
                                                                                 background: bgColor,
                                                                                 color: (isAvailable || isSelectedByMe) && !isTakenByOther ? '#fff' : '#94a3b8',
-                                                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                                                fontSize: '11px', fontWeight: '700',
                                                                                 cursor: (isAvailable && !isTakenByOther) ? 'pointer' : 'not-allowed',
-                                                                                transition: 'transform 0.1s', border: '1px solid rgba(0,0,0,0.1)',
                                                                                 transform: isSelectedByMe ? 'scale(1.1)' : 'scale(1)'
                                                                             }}
                                                                         >
@@ -924,12 +1142,12 @@ function FlightCheckout() {
                                                             </div>
 
                                                             {/* Aisle (Row Number) */}
-                                                            <div style={{ width: '30px', textAlign: 'center', fontSize: '12px', fontWeight: '800', color: '#94a3b8' }}>
+                                                            <div className="fco-aisle">
                                                                 {seats[0]?.RowNo}
                                                             </div>
 
                                                             {/* Right Seats */}
-                                                            <div style={{ display: 'flex', gap: '8px' }}>
+                                                            <div className="fco-seat-grp">
                                                                 {rightSeats.map((seat, sIdx) => {
                                                                     const isAvailable = seat.AvailablityType === 1;
                                                                     const isSelectedByMe = getCurrentSSR('seat')?.Code === seat.Code;
@@ -944,14 +1162,11 @@ function FlightCheckout() {
                                                                             key={sIdx}
                                                                             onClick={() => { if (isAvailable && !isTakenByOther) handleSsrToggle('seat', seat); }}
                                                                             title={isSelectedByMe ? `✅ Your seat` : isTakenByOther ? `Taken by another passenger` : `${seat.Code} — ₹${seat.Price}`}
+                                                                            className="fco-seat"
                                                                             style={{
-                                                                                width: '36px', height: '36px', borderRadius: '8px',
                                                                                 background: bgColor,
                                                                                 color: (isAvailable || isSelectedByMe) && !isTakenByOther ? '#fff' : '#94a3b8',
-                                                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                                                fontSize: '11px', fontWeight: '700',
                                                                                 cursor: (isAvailable && !isTakenByOther) ? 'pointer' : 'not-allowed',
-                                                                                transition: 'transform 0.1s', border: '1px solid rgba(0,0,0,0.1)',
                                                                                 transform: isSelectedByMe ? 'scale(1.1)' : 'scale(1)'
                                                                             }}
                                                                         >
@@ -1100,14 +1315,31 @@ function FlightCheckout() {
                                     </div>
                                     <div className="col-md-6 mb-3">
                                         <label style={{ fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>Phone Number</label>
-                                        <input
-                                            type="tel"
-                                            className="form-control"
-                                            placeholder="+91 9876543210"
-                                            value={contactPhone}
-                                            onChange={(e) => setContactPhone(e.target.value)}
-                                            style={{ padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
-                                        />
+                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                            <select
+                                                className="form-select"
+                                                style={{ width: '110px', padding: '12px 30px 12px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '14px', outline: 'none', cursor: 'pointer' }}
+                                                value={contactCountryCode}
+                                                onChange={(e) => setContactCountryCode(e.target.value)}
+                                            >
+                                                <option value="+91">+91 (IN)</option>
+                                                <option value="+1">+1 (US)</option>
+                                                <option value="+44">+44 (UK)</option>
+                                                <option value="+971">+971 (AE)</option>
+                                                <option value="+61">+61 (AU)</option>
+                                            </select>
+                                            <input
+                                                type="tel"
+                                                className="form-control"
+                                                placeholder="9876543210"
+                                                value={contactPhone}
+                                                onChange={(e) => {
+                                                    const val = e.target.value.replace(/\D/g, '');
+                                                    if (val.length <= 15) setContactPhone(val);
+                                                }}
+                                                style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '14px', outline: 'none' }}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1172,6 +1404,12 @@ function FlightCheckout() {
                                 </div>
 
                                 <div style={{ marginTop: '24px' }}>
+                                    {validationError && (
+                                        <div style={{ background: '#fef2f2', border: '1px solid #fee2e2', padding: '12px', borderRadius: '8px', color: '#b91c1c', fontSize: '13px', fontWeight: '500', marginBottom: '16px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                                            <ShieldAlert size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
+                                            <span>{validationError}</span>
+                                        </div>
+                                    )}
                                     <button
                                         className="th-btn"
                                         onClick={handleBookFlight}
@@ -1180,7 +1418,12 @@ function FlightCheckout() {
                                         onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 15px 25px rgba(232,21,27,0.3)'; }}
                                         onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 10px 20px rgba(232,21,27,0.2)'; }}
                                     >
-                                        {isBooking ? 'Processing...' : 'Proceed to Payment'}
+                                        {isBooking
+                                            ? paymentStatus === 'paying'   ? '⏳ Opening Payment...'
+                                            : paymentStatus === 'verifying' ? '🔒 Verifying Payment...'
+                                            : paymentStatus === 'booking'   ? '✈️ Confirming Booking...'
+                                            : 'Processing...'
+                                            : '🔒 Proceed to Pay'}
                                     </button>
                                 </div>
 
@@ -1192,6 +1435,28 @@ function FlightCheckout() {
                     </div>
                 </div>
             </section>
+            {showLoginPrompt && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999 }}>
+                    <div style={{ background: '#fff', padding: '32px', borderRadius: '16px', textAlign: 'center', maxWidth: '420px', width: '90%', boxShadow: '0 20px 40px rgba(0,0,0,0.2)', fontFamily: "'Inter', sans-serif" }}>
+                        <div style={{ width: '60px', height: '60px', background: '#fef2f2', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                            <i className="fa-solid fa-lock" style={{ fontSize: '24px', color: '#e8151b' }}></i>
+                        </div>
+                        <h3 style={{ marginTop: 0, color: '#1a1a2e', fontSize: '22px', fontWeight: '700', marginBottom: '12px' }}>Login Required</h3>
+                        <p style={{ color: '#64748b', fontSize: '15px', lineHeight: '1.6', marginBottom: '24px' }}>
+                            Please login or create an account to securely continue with your booking.
+                        </p>
+                        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                            <button type="button" onClick={() => setShowLoginPrompt(false)} style={{ flex: 1, padding: '12px 0', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '15px', transition: 'background 0.2s' }} onMouseEnter={e => e.target.style.background = '#e2e8f0'} onMouseLeave={e => e.target.style.background = '#f1f5f9'}>Cancel</button>
+                            <button type="button" onClick={() => {
+                                setShowLoginPrompt(false);
+                                window.dispatchEvent(new Event('openLoginModal'));
+                            }} style={{ flex: 1, padding: '12px 0', background: '#e8151b', color: '#fff', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '15px', transition: 'background 0.2s' }} onMouseEnter={e => e.target.style.background = '#d01217'} onMouseLeave={e => e.target.style.background = '#e8151b'}>Login / Sign Up</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            <FooterOne />
+            <LoginForm isOpen={isLoginFormOpen} onClose={() => setIsLoginFormOpen(false)} />
         </>
     );
 }

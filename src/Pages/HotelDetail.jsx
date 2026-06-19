@@ -132,14 +132,28 @@ export default function HotelDetail() {
         .hd-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap; gap: 20px; }
         .hd-title { font-family: 'Outfit', sans-serif; font-size: 32px; font-weight: 800; color: #1a1a2e; margin: 0 0 8px; line-height: 1.2; }
         .hd-address { display: flex; align-items: center; gap: 6px; font-size: 14px; color: #475569; }
+        .hd-header-right { text-align: right; }
         
+        @media(max-width: 768px) {
+          .hd-header { flex-direction: column; }
+          .hd-header-right { text-align: left; background: #fff; padding: 16px; border-radius: 12px; width: 100%; box-shadow: 0 2px 10px rgba(0,0,0,0.05); box-sizing: border-box; }
+          .hd-title { font-size: 26px; }
+        }
+
         /* Gallery Grid */
         .hd-gallery { display: grid; grid-template-columns: 2fr 1fr; grid-template-rows: 200px 200px; gap: 12px; border-radius: 20px; overflow: hidden; margin-bottom: 40px; }
         .hd-gallery-main { grid-row: span 2; position: relative; }
         .hd-gallery-img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s; cursor: pointer; }
         .hd-gallery-img:hover { transform: scale(1.02); }
         .hd-gallery-box { overflow: hidden; position: relative; }
-        @media(max-width: 768px) { .hd-gallery { grid-template-columns: 1fr; grid-template-rows: 250px 120px 120px; } .hd-gallery-main { grid-row: span 1; } }
+        
+        @media(max-width: 768px) { 
+          .hd-gallery { grid-template-columns: 1fr 1fr; grid-template-rows: 250px 120px; gap: 8px; border-radius: 12px; } 
+          .hd-gallery-main { grid-column: span 2; grid-row: span 1; } 
+        }
+        @media(max-width: 480px) {
+          .hd-gallery { grid-template-rows: 200px 100px; }
+        }
 
         /* Content Layout */
         .hd-content { display: grid; grid-template-columns: 2fr 1fr; gap: 32px; }
@@ -147,13 +161,15 @@ export default function HotelDetail() {
         
         /* Sections */
         .hd-section { background: #fff; border-radius: 16px; padding: 32px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin-bottom: 24px; }
+        @media(max-width: 768px) { .hd-section { padding: 20px; } }
         .hd-section-title { font-family: 'Outfit', sans-serif; font-size: 22px; font-weight: 700; color: #1a1a2e; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
         .hd-desc { font-size: 15px; color: #475569; line-height: 1.7; }
         
         /* Amenities */
         .hd-amenities { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; }
+        @media(max-width: 480px) { .hd-amenities { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; } }
         .hd-amenity-item { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #334155; font-weight: 500; }
-        .hd-amenity-icon { width: 32px; height: 32px; border-radius: 8px; background: #f1f5f9; display: flex; align-items: center; justify-content: center; color: #e8151b; }
+        .hd-amenity-icon { width: 32px; height: 32px; border-radius: 8px; background: #f1f5f9; display: flex; align-items: center; justify-content: center; color: #e8151b; flex-shrink: 0; }
 
         /* Rooms Section */
         .hd-rooms-title { font-family: 'Outfit', sans-serif; font-size: 28px; font-weight: 800; color: #1a1a2e; margin: 40px 0 20px; }
@@ -173,7 +189,13 @@ export default function HotelDetail() {
         .hd-select-btn { background: linear-gradient(135deg, #e8151b, #c8101a); color: #fff; border: none; border-radius: 12px; padding: 14px 32px; font-size: 15px; font-weight: 700; cursor: pointer; transition: all 0.2s; width: 100%; font-family: 'Inter', sans-serif; }
         .hd-select-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(232,21,27,0.35); }
         
-        @media(max-width: 600px) { .hd-room-card { grid-template-columns: 1fr; } .hd-room-price { text-align: left; border-top: 1px solid #f1f5f9; padding-top: 20px; } .hd-select-btn { width: auto; } }
+        @media(max-width: 600px) { 
+          .hd-room-card { grid-template-columns: 1fr; padding: 16px; } 
+          .hd-room-price { text-align: left; border-top: 1px dashed #e2e8f0; padding-top: 20px; display: flex; flex-direction: column; gap: 4px; } 
+          .hd-price-night { display: none; }
+          .hd-price-total { margin-bottom: 16px; }
+          .hd-select-btn { width: 100%; } 
+        }
       `}</style>
 
       <div className="hd-page">

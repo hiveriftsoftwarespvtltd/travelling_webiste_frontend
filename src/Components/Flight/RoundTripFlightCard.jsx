@@ -31,7 +31,7 @@ function RoundTripFlightCard({ flight, isSelected, onSelect }) {
             .rtc-airline { width: 100px; display: flex; flex-direction: column; gap: 4px; }
             .rtc-route { flex: 1; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; }
             .rtc-price { width: 70px; text-align: right; }
-            @media(max-width: 600px) {
+            @media(max-width: 1024px) {
                 .rtc-row { flex-wrap: wrap; align-items: flex-start; gap: 8px; }
                 .rtc-airline { width: auto; flex-direction: row; align-items: center; gap: 10px; flex: 1; }
                 .rtc-route { width: 100%; padding: 0; margin-top: 4px; }

@@ -33,11 +33,6 @@ function FlightCard({ flight }) {
     const formatDuration = (m) => `${Math.floor(m / 60)}h ${m % 60}m`;
 
     const handleBook = async () => {
-        if (!localStorage.getItem('token')) {
-            window.dispatchEvent(new Event('openLoginModal'));
-            return;
-        }
-
         if (isUpsellLoading) return;
         setIsUpsellLoading(true);
         try {
@@ -67,11 +62,7 @@ function FlightCard({ flight }) {
                 throw new Error('Seat not available or pricing failed.');
             }
 
-            console.group('🛫 [OneWay] Fare API Data');
-            console.log('💰 FareQuote:', quoteData?.Response?.Results?.Fare?.PublishedFare);
-            console.log('📜 FareRules:', (quoteData?.Response?.Results?.FareRules || ruleData?.Response?.FareRules)?.length, 'rules');
-            console.log('📈 FareUpsell Results:', upsellData?.Response?.Results);
-            console.groupEnd();
+
 
             // Always open the modal — user clicked "View Fare" explicitly
             // (even 1 fare family should show baggage, rules, price before booking)
@@ -110,11 +101,19 @@ function FlightCard({ flight }) {
                 .fc-route { flex: 1; display: flex; align-items: center; padding: 0 20px; }
                 .fc-price { min-width: 150px; padding-left: 12px; border-left: 1px solid #e8edf2; display: flex; flex-direction: column; justify-content: center; height: 100%; align-items: flex-end; }
                 .fc-airline { width: 155px; flex-shrink: 0; display: flex; flex-direction: column; gap: 5px; }
-                @media(max-width: 768px) {
-                    .fc-row { flex-direction: column; align-items: flex-start; gap: 16px; padding: 16px 12px; }
-                    .fc-route { padding: 0; width: 100%; justify-content: space-between; }
-                    .fc-price { min-width: auto; padding-left: 0; border-left: none; border-top: 1px solid #e8edf2; padding-top: 12px; width: 100%; align-items: center; flex-direction: row; justify-content: space-between; }
-                    .fc-airline { width: 100%; flex-direction: row; align-items: center; gap: 12px; }
+                @media(max-width: 1024px) {
+                    .fc-row { flex-direction: column; align-items: stretch; gap: 16px; padding: 16px 12px; }
+                    .fc-route { padding: 0; width: auto; justify-content: space-between; }
+                    .fc-route > div { min-width: 0 !important; }
+                    .fc-airline { width: auto; flex-direction: row; align-items: center; gap: 12px; }
+                    .fc-price { 
+                        min-width: 0; padding-left: 0; border-left: none; border-top: 1px solid #e8edf2; 
+                        padding-top: 12px; width: auto; 
+                        display: grid !important; grid-template-columns: 1fr auto; align-items: center; gap: 6px; 
+                    }
+                    .fc-price > div:nth-child(1) { text-align: left !important; margin-bottom: 0 !important; }
+                    .fc-price > div:nth-child(3) { grid-column: 1; grid-row: 2; justify-content: flex-start; }
+                    .fc-price > button { grid-column: 2; grid-row: 1 / 3; width: auto !important; padding: 10px 24px !important; }
                 }
             `}</style>
 

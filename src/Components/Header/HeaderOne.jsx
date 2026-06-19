@@ -29,17 +29,17 @@ function HeaderOne() {
     useEffect(() => {
         checkAuth();
         window.addEventListener('authChange', checkAuth);
-        
+
         const openLogin = () => setIsLoginFormOpen(true);
         window.addEventListener('openLoginModal', openLogin);
-        
+
         const handleClickOutside = (e) => {
             if (!e.target.closest('.hdr-profile-menu')) {
                 setProfileDropdownOpen(false);
             }
         };
         window.addEventListener('click', handleClickOutside);
-        
+
         return () => {
             window.removeEventListener('authChange', checkAuth);
             window.removeEventListener('openLoginModal', openLogin);
@@ -127,7 +127,6 @@ function HeaderOne() {
         { to: '/about', label: 'About Us' },
         { to: '/destination', label: 'Destinations' },
         { to: '/service', label: 'Services' },
-        // { to: '/manage-booking', label: 'Manage Booking' },
         // { to: '/release-booking', label: 'Cancel Booking' },
         // { to: '/cancellation-charges', label: 'Check Penalties' },
         // { to: '/ticket-change-request', label: 'Modify Ticket' },
@@ -234,6 +233,11 @@ function HeaderOne() {
                     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
                     animation: slideDown 0.4s ease forwards;
                     padding: 10px 40px;
+                }
+                
+                .hdr-main-bar.force-white {
+                    background: #ffffff !important;
+                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
                 }
                 
                 @keyframes slideDown {
@@ -474,7 +478,7 @@ function HeaderOne() {
             </div>
 
             {/* MAIN HEADER BAR */}
-            <div className={`hdr-main-bar ${isSticky ? 'sticky' : ''}`}>
+            <div className={`hdr-main-bar ${isSticky ? 'sticky' : ''} ${location.pathname !== '/' ? 'force-white' : ''}`}>
                 {/* Logo */}
                 <Link to="/" className="hdr-logo-block" style={{ borderRight: 'none' }}>
                     <img src="/assets/img/logo-main-jiyo.png" alt="Jiyo Life" className="hdr-logo-new" />
@@ -530,7 +534,7 @@ function HeaderOne() {
                         </>
                     )}
                 </div>
-                
+
                 <div className="d-flex align-items-center ms-auto">
                     <button
                         className="hdr-mobile-btn"

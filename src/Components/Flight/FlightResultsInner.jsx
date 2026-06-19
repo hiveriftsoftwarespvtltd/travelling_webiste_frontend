@@ -231,7 +231,7 @@ function FlightResultsInner() {
             const outPayload = { TraceId: selectedOutbound.TraceId, ResultIndex: selectedOutbound.ResultIndex };
             const retPayload = { TraceId: selectedReturn.TraceId,   ResultIndex: selectedReturn.ResultIndex };
 
-            console.log('🔍 Fetching fare data for outbound:', selectedOutbound.ResultIndex, '+ return:', selectedReturn.ResultIndex);
+
 
             // Fetch quote sequentially first to avoid TBO API concurrent lock errors (ErrorCode 28)
             const outQuoteRes = await post('fare-quote', outPayload).catch(() => null);
@@ -286,8 +286,7 @@ function FlightResultsInner() {
             const outEnrichedLegs = (outQR?.Segments?.[0] || outSearchLegs).map((leg, i) => enrichSeg(leg, outSearchLegs[i]));
             const retEnrichedLegs = (retQR?.Segments?.[0] || retSearchLegs).map((leg, i) => enrichSeg(leg, retSearchLegs[i]));
 
-            console.log('🧳 Out Baggage:', outEnrichedLegs[0]?.Baggage, '| Cabin:', outEnrichedLegs[0]?.CabinBaggage);
-            console.log('🧳 Ret Baggage:', retEnrichedLegs[0]?.Baggage, '| Cabin:', retEnrichedLegs[0]?.CabinBaggage);
+
 
             // Synthesize merged quoteData: Segments[0]=outbound, Segments[1]=return
             const quoteData = {
@@ -333,13 +332,7 @@ function FlightResultsInner() {
             };
 
             // ── Debug summary ──────────────────────────────────────────────────
-            console.group('🛫 [RoundTrip] Fare Modal — Final Data');
-            console.log('💰 Total Fare:', quoteData.Response.Results.Fare?.PublishedFare);
-            console.log('📜 FareRules:', quoteData.Response.Results.FareRules?.length, 'rules');
-            console.log('🧳 Baggage[0][0]:', quoteData.Response.Results.Segments?.[0]?.[0]?.Baggage);
-            console.log('🧳 Baggage[1][0]:', quoteData.Response.Results.Segments?.[1]?.[0]?.Baggage);
-            console.log('📈 Upsell families:', upsellData?.Response?.Results?.length || 0);
-            console.groupEnd();
+
 
             // Always open the modal — user clicked "View Fare" explicitly
             // Even 1 fare family shows baggage, rules, price before booking
@@ -363,10 +356,11 @@ function FlightResultsInner() {
                 .fr-sticky-container { display: flex; align-items: center; justify-content: space-between; gap: 20px; position: relative; }
                 .fr-sticky-details { flex: 1; display: flex; gap: 20px; }
                 .fr-sticky-box { flex: 1; display: flex; align-items: center; background: #252542; padding: 12px 16px; border-radius: 8px; border: 1px solid #36365c; }
-                @media(max-width: 900px) {
+                @media(max-width: 1024px) {
                     .fr-grid { grid-template-columns: 1fr; }
-                    .fr-sticky-details { display: none; }
-                    .fr-sticky-container { justify-content: center; }
+                    .fr-sticky-container { flex-direction: column; align-items: stretch; gap: 12px; }
+                    .fr-sticky-details { flex-direction: column; gap: 10px; width: 100%; }
+                    .fr-sticky-box { width: 100%; }
                 }
             `}</style>
             {/* ── Modify Search Bar (Top) ── */}
@@ -389,8 +383,13 @@ function FlightResultsInner() {
 
                 {/* ── Calendar Fare Strip ── */}
                 {!isLoading && calendarFares.length > 0 && (
-                    <div style={{ display: 'flex', alignItems: 'stretch', background: '#fff', borderRadius: '4px', border: '1px solid #e0e0e0', marginBottom: '16px', height: '64px', overflow: 'hidden' }}>
-                        <button onClick={() => scroll('left')} style={{ width: '40px', background: '#fff', border: 'none', borderRight: '1px solid #e0e0e0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', flexShrink: 0, transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#f8f9fa'} onMouseLeave={e => e.currentTarget.style.background = '#fff'}>
+                    <div className="cal-container" style={{ display: 'flex', alignItems: 'stretch', background: '#fff', borderRadius: '4px', border: '1px solid #e0e0e0', marginBottom: '16px', height: '64px', overflow: 'hidden' }}>
+                        <style>{`
+                            @media(max-width: 768px) {
+                                .cal-nav-btn { display: none !important; }
+                            }
+                        `}</style>
+                        <button className="cal-nav-btn" onClick={() => scroll('left')} style={{ width: '40px', background: '#fff', border: 'none', borderRight: '1px solid #e0e0e0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', flexShrink: 0, transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#f8f9fa'} onMouseLeave={e => e.currentTarget.style.background = '#fff'}>
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
                         </button>
                         
@@ -422,7 +421,8 @@ function FlightResultsInner() {
                                             cursor: isActive ? 'default' : 'pointer', 
                                             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                                             transition: 'background 0.2s',
-                                            background: isActive ? '#f8f9fa' : '#fff'
+                                            background: isActive ? '#f8f9fa' : '#fff',
+                                            flexShrink: 0
                                         }}
                                         onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = '#fcfcfc'; }}
                                         onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = '#fff'; }}
@@ -438,11 +438,11 @@ function FlightResultsInner() {
                             })}
                         </div>
                         
-                        <button onClick={() => scroll('right')} style={{ width: '40px', background: '#fff', border: 'none', borderLeft: '1px solid #e0e0e0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#333', flexShrink: 0, transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#f8f9fa'} onMouseLeave={e => e.currentTarget.style.background = '#fff'}>
+                        <button className="cal-nav-btn" onClick={() => scroll('right')} style={{ width: '40px', background: '#fff', border: 'none', borderLeft: '1px solid #e0e0e0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#333', flexShrink: 0, transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#f8f9fa'} onMouseLeave={e => e.currentTarget.style.background = '#fff'}>
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
                         </button>
                         
-                        <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#fff', flexShrink: 0, cursor: 'pointer', borderLeft: '1px solid #e0e0e0', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#f8f9fa'} onMouseLeave={e => e.currentTarget.style.background = '#fff'}>
+                        <div className="cal-nav-btn" style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#fff', flexShrink: 0, cursor: 'pointer', borderLeft: '1px solid #e0e0e0', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#f8f9fa'} onMouseLeave={e => e.currentTarget.style.background = '#fff'}>
                             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '2px' }}>
                                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                                 <line x1="16" y1="2" x2="16" y2="6"></line>
@@ -460,13 +460,13 @@ function FlightResultsInner() {
 
                 {/* ── Sort Bar ── */}
                 {!isLoading && flights.length > 0 && (
-                    <div style={{ display: 'flex', background: '#fff', borderRadius: '8px', border: '1px solid #e4e7ed', marginBottom: '12px', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-                        <div style={{ width: '145px', flexShrink: 0, display: 'flex', alignItems: 'center', padding: '10px 16px', borderRight: '1px solid #e4e7ed' }}>
+                    <div style={{ display: 'flex', background: '#fff', borderRadius: '8px', border: '1px solid #e4e7ed', marginBottom: '12px', overflowX: 'auto', overflowY: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                        <div style={{ width: '120px', flexShrink: 0, display: 'flex', alignItems: 'center', padding: '10px 16px', borderRight: '1px solid #e4e7ed' }}>
                             <span style={{ fontSize: '13px', fontWeight: '700', color: '#555' }}>Sort By:</span>
                         </div>
                         {SORT_TABS.map((tab, idx) => (
                             <div key={tab.id} onClick={() => setSortBy(tab.id)}
-                                style={{ flex: 1, padding: '10px 8px', textAlign: 'center', cursor: 'pointer', borderRight: idx < SORT_TABS.length - 1 ? '1px solid #e4e7ed' : 'none', background: sortBy === tab.id ? '#edf4ff' : '#fff', color: sortBy === tab.id ? '#1a6dcf' : '#4a5568', fontWeight: sortBy === tab.id ? '800' : '600', fontSize: '12px', transition: 'all 0.15s', userSelect: 'none', borderBottom: sortBy === tab.id ? '3px solid #1a6dcf' : '3px solid transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+                                style={{ flex: 1, minWidth: '90px', padding: '10px 8px', textAlign: 'center', cursor: 'pointer', borderRight: idx < SORT_TABS.length - 1 ? '1px solid #e4e7ed' : 'none', background: sortBy === tab.id ? '#edf4ff' : '#fff', color: sortBy === tab.id ? '#1a6dcf' : '#4a5568', fontWeight: sortBy === tab.id ? '800' : '600', fontSize: '12px', transition: 'all 0.15s', userSelect: 'none', borderBottom: sortBy === tab.id ? '3px solid #1a6dcf' : '3px solid transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
                                 onMouseEnter={e => { if (sortBy !== tab.id) e.currentTarget.style.background = '#f8faff'; }}
                                 onMouseLeave={e => { if (sortBy !== tab.id) e.currentTarget.style.background = '#fff'; }}>
                                 {tab.label}

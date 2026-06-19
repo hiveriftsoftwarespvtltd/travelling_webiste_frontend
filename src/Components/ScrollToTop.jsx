@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 
 function ScrollToTop() {
     const [progress, setProgress] = useState(307.919);
@@ -25,6 +25,21 @@ function ScrollToTop() {
     };
 
     return (
+        <>
+        <style>{`
+            @media(max-width: 768px) {
+                .scroll-top {
+                    width: 35px !important;
+                    height: 35px !important;
+                    right: 10px !important;
+                    bottom: 10px !important;
+                    line-height: 35px !important;
+                }
+                .scroll-top i {
+                    font-size: 14px !important;
+                }
+            }
+        `}</style>
         <div
             className={`scroll-top ${visible ? "show" : ""}`}
             onClick={scrollToTop}
@@ -46,6 +61,7 @@ function ScrollToTop() {
                 ></path>
             </svg>
         </div>
+        </>
     );
 }
 

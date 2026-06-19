@@ -479,10 +479,6 @@ const FareOptionsModal = ({ isOpen, onClose, outbound, returnFlight, navigate, f
     const COL_W  = Math.max(200, Math.floor((860 - LEFT_W) / activeFareFamilies.length));
 
     const handleContinue = () => {
-        if (!localStorage.getItem('token')) {
-            window.dispatchEvent(new Event('openLoginModal'));
-            return;
-        }
         
         let prefetchedQuote = fetchedFareData?.quoteData;
 

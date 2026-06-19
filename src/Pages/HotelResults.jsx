@@ -301,7 +301,33 @@ export default function HotelResults() {
         .hr-book-btn:hover { box-shadow: 0 4px 10px rgba(213,18,38,0.3); }
         .hr-price-per-night { font-size: 12px; color: #4a4a4a; margin-bottom: 2px;}
         
-        @media(max-width: 700px) { .hr-card { flex-direction: column; } .hr-card-body { flex-direction: column; } .hr-card-right { width: 100%; border-left: none; border-top: 1px solid #e2e8f0; align-items: flex-start; background: #fff;} .hr-price-block { text-align: left; } .hr-card-img { width: 100%; height: auto; } }
+        @media(max-width: 900px) and (min-width: 701px) {
+            .hr-card-img { width: 220px; padding: 12px; }
+            .hr-card-img img { height: 160px; }
+            .hr-card-middle { padding: 12px 16px 12px 0; }
+            .hr-card-right { width: 200px; padding: 12px 16px; }
+            .hr-hotel-name { font-size: 18px; }
+            .hr-price-big { font-size: 24px; }
+        }
+        @media(max-width: 700px) { 
+            .hr-card { flex-direction: column; border-radius: 12px; } 
+            .hr-card-img { width: 100%; padding: 0; } 
+            .hr-card-img img { height: 200px; border-radius: 12px 12px 0 0; }
+            .hr-card-body { flex-direction: column; } 
+            .hr-card-middle { padding: 16px; } 
+            .hr-hotel-name { font-size: 20px; }
+            .hr-card-right { width: 100%; border-left: none; border-top: 1px dashed #e2e8f0; align-items: center; flex-direction: row; justify-content: space-between; background: #fff; padding: 16px; gap: 12px;} 
+            .hr-price-block { text-align: left; margin-bottom: 0; width: auto; flex: 1; } 
+            .hr-price-big { font-size: 24px; }
+            .hr-book-btn { width: auto; padding: 12px 24px; font-size: 14px; white-space: nowrap; flex-shrink: 0; }
+        }
+        @media(max-width: 480px) {
+            .hr-card-right { flex-direction: column; align-items: flex-start; gap: 16px; }
+            .hr-book-btn { width: 100%; }
+            .hr-price-big { font-size: 22px; }
+            .hr-hotel-name { font-size: 18px; }
+            .hr-card-img img { height: 180px; }
+        }
         /* Loading */
         .hr-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 20px; gap: 20px; }
         .hr-spinner { width: 56px; height: 56px; border: 4px solid #f1f5f9; border-top-color: #ef6614; border-radius: 50%; animation: hr-spin 0.8s linear infinite; }

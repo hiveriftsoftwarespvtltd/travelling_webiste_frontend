@@ -33,11 +33,35 @@ export default function HotelConfirmation() {
     leadGuest
   } = state;
 
-  const bookingStatus = bookResult?.Status?.Description || 'Confirmed';
-  const confirmationNo = bookResult?.ConfirmationNo || voucherData?.Voucher?.ConfirmationNo || 'Pending from Hotel';
+  const bookingStatusDesc = bookResult?.Status?.Description || 'Confirmed';
+  const tboStatus = bookResult?.HotelBookingStatus || 'Confirmed';
+
+  const isFailed = bookingStatusDesc.toLowerCase().includes('fail') || tboStatus === 'Failed' || tboStatus === 'Rejected';
+  const isPending = tboStatus === 'Pending' || bookingStatusDesc.toLowerCase().includes('pending');
+  const isConfirmed = !isFailed && !isPending;
+
+  const confirmationNo = bookResult?.ConfirmationNo || voucherData?.Voucher?.ConfirmationNo || (isPending ? 'Pending from Hotel' : 'N/A');
   const price = selectedRoom?.TotalFare || hotel?.MinPrice || 0;
   const taxes = Math.round(price * 0.12);
   const grandTotal = price + taxes;
+
+  // Banner styles based on status
+  let bannerBg = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+  let bannerIcon = <CheckCircle2 size={40} color="#fff" strokeWidth={2.5} />;
+  let bannerTitle = 'Booking Confirmed';
+  let bannerDesc = `Your hotel reservation is confirmed. A copy has been sent to ${contactEmail}`;
+
+  if (isFailed) {
+    bannerBg = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+    bannerIcon = <span style={{fontSize: '40px'}}>❌</span>;
+    bannerTitle = 'Booking Could Not Be Confirmed';
+    bannerDesc = 'Your payment was successful but the booking could not be confirmed. A full refund has been initiated and will reflect in 5-7 business days.';
+  } else if (isPending) {
+    bannerBg = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
+    bannerIcon = <span style={{fontSize: '40px'}}>⏳</span>;
+    bannerTitle = 'Booking Under Process';
+    bannerDesc = 'Your payment was successful. We are waiting for final confirmation from the hotel supplier.';
+  }
 
   return (
     <>
@@ -81,13 +105,13 @@ export default function HotelConfirmation() {
       <div className="hc-page">
         <div className="hc-container">
           
-          {/* Success Banner */}
-          <div className="hc-banner">
+          {/* Success / Failure / Pending Banner */}
+          <div className="hc-banner" style={{ background: bannerBg }}>
             <div className="hc-banner-icon">
-              <CheckCircle2 size={40} color="#fff" strokeWidth={2.5} />
+              {bannerIcon}
             </div>
-            <h1>Booking {bookingStatus}</h1>
-            <p>Your hotel reservation is confirmed. A copy has been sent to {contactEmail}</p>
+            <h1>{bannerTitle}</h1>
+            <p>{bannerDesc}</p>
           </div>
 
           {/* Booking Reference Details */}
@@ -195,11 +219,13 @@ export default function HotelConfirmation() {
 
           {/* Action Buttons */}
           <div className="hc-btn-group">
-            <button className="hc-btn hc-btn-primary" onClick={() => window.print()}>
-              <Printer size={18} /> Print Voucher
-            </button>
-            <button className="hc-btn hc-btn-secondary" onClick={() => navigate('/manage-booking')}>
-              <Building2 size={18} /> Manage Booking
+            {isConfirmed && (
+              <button className="hc-btn hc-btn-primary" onClick={() => window.print()}>
+                <Printer size={18} /> Print Voucher
+              </button>
+            )}
+            <button className="hc-btn hc-btn-secondary" onClick={() => navigate('/hotel-bookings')}>
+              <Building2 size={18} /> My Bookings
             </button>
             <button className="hc-btn hc-btn-secondary" onClick={() => navigate('/')}>
               Home <ChevronRight size={18} />

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import FooterOne from '../Components/Footer/FooterOne';
-import HeaderOne from '../Components/Header/HeaderOne';
+
 import {
   Building2, MapPin, Calendar, Users, Star, ShieldCheck,
   Coffee, User, Phone, Mail, ShieldAlert, Loader2, CheckCircle2,
@@ -47,11 +47,37 @@ export default function HotelCheckout() {
   const [preBookData, setPreBookData] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [isBooking, setIsBooking] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState('idle'); // 'idle' | 'paying' | 'verifying' | 'booking'
   const [showCancellationPolicy, setShowCancellationPolicy] = useState(false);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+
+  // Prevent refresh during booking
+  useEffect(() => {
+    if (paymentStatus === 'booking') {
+      const handleBeforeUnload = (e) => {
+        e.preventDefault();
+        e.returnValue = '';
+      };
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }
+  }, [paymentStatus]);
+
+  // Load Razorpay checkout script dynamically
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    document.body.appendChild(script);
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
 
   // Guest details
   const [contactEmail, setContactEmail] = useState('');
   const [contactPhone, setContactPhone] = useState('');
+  const [contactCountryCode, setContactCountryCode] = useState('+91');
 
   // Build guest rooms from state
   const [guestRooms, setGuestRooms] = useState([]);
@@ -156,7 +182,14 @@ export default function HotelCheckout() {
 
   const handleBook = async (e) => {
     e.preventDefault();
+
+    if (!localStorage.getItem('token')) {
+        setShowLoginPrompt(true);
+        return;
+    }
+
     setIsBooking(true);
+    setPaymentStatus('idle');
     setErrorMsg('');
 
     try {
@@ -171,6 +204,112 @@ export default function HotelCheckout() {
       if (!contactEmail || !contactPhone) {
         throw new Error('Please provide contact email and phone number.');
       }
+      if (contactPhone.length < 10) {
+        throw new Error('Please enter a valid phone number (minimum 10 digits).');
+      }
+      
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(contactEmail)) {
+        throw new Error('Please enter a valid email address.');
+      }
+
+      // Calculate total amount to pay
+      const currentPrice = preBookData?.HotelResult?.Rooms?.[0]?.TotalFare || state.selectedRoom?.TotalFare || state.hotel?.MinPrice || 0;
+      const currentTaxes = Math.round(currentPrice * 0.12);
+      const amountToPay = currentPrice + currentTaxes;
+
+      // ─── STEP 1: Create Razorpay Order on Backend ───────────────────────────
+      setPaymentStatus('paying');
+      const backendBase = HOTEL_API.substring(0, HOTEL_API.lastIndexOf('/')); // → http://localhost:8009/api
+      const paymentApiBase = `${backendBase}/payment`;
+
+      const orderRes = await fetch(`${paymentApiBase}/create-order`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: amountToPay,
+          receipt: `JIYOLIFE-HOTEL-${Date.now()}`,
+          currency: 'INR',
+        }),
+      });
+      const orderData = await orderRes.json();
+
+      if (!orderData.success || !orderData.orderId) {
+        throw new Error(orderData.message || 'Failed to create payment order. Please try again.');
+      }
+
+      // ─── STEP 2: Open Razorpay Payment Modal ────────────────────────────────
+      await new Promise((resolve, reject) => {
+        if (!window.Razorpay) {
+          reject(new Error('Razorpay SDK failed to load. Please refresh the page and try again.'));
+          return;
+        }
+
+        const rzpOptions = {
+          key: orderData.keyId,
+          amount: orderData.amount,
+          currency: orderData.currency,
+          name: 'Jiyo Life Travel',
+          description: `Hotel Booking — ${state.hotel?.HotelName}`,
+          order_id: orderData.orderId,
+          prefill: {
+            name: `${guestRooms[0]?.guests[0]?.FirstName || ''} ${guestRooms[0]?.guests[0]?.LastName || ''}`.trim(),
+            email: contactEmail,
+            contact: contactCountryCode + contactPhone,
+          },
+          theme: {
+            color: '#e8151b',
+          },
+          config: {
+            display: {
+              blocks: {
+                banks: { name: 'Pay via Net Banking', instruments: [{ method: 'netbanking' }] },
+                upi:   { name: 'Pay via UPI', instruments: [{ method: 'upi' }] },
+                card:  { name: 'Pay via Card', instruments: [{ method: 'card' }] },
+                wallet:{ name: 'Pay via Wallet', instruments: [{ method: 'wallet' }] },
+              },
+              sequence: ['block.upi', 'block.card', 'block.banks', 'block.wallet'],
+              preferences: { show_default_blocks: true },
+            },
+          },
+          handler: async (response) => {
+            try {
+              setPaymentStatus('verifying');
+              const verifyRes = await fetch(`${paymentApiBase}/verify`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                }),
+              });
+              const verifyData = await verifyRes.json();
+              if (verifyData.success) {
+                resolve(verifyData);
+              } else {
+                reject(new Error('Payment verification failed. Your money is safe and will be refunded.'));
+              }
+            } catch (err) {
+              reject(new Error('Payment verification error: ' + err.message));
+            }
+          },
+          modal: {
+            ondismiss: () => {
+              reject(new Error('Payment was cancelled. Your booking was not confirmed.'));
+            },
+          },
+        };
+
+        const rzp = new window.Razorpay(rzpOptions);
+        rzp.on('payment.failed', (response) => {
+          reject(new Error(`Payment failed: ${response.error?.description || 'Unknown error'}. Please try again.`));
+        });
+        rzp.open();
+      });
+
+      // ─── STEP 3: Payment Verified — Run TBO Booking ─────────────────────────
+      setPaymentStatus('booking');
 
       // Build HotelRoomsDetails for TBO
       const hotelRoomsDetails = guestRooms.map((room, ri) => {
@@ -202,6 +341,17 @@ export default function HotelCheckout() {
       const bookingCode = preBookData?.HotelResult?.Rooms?.[0]?.BookingCode
         || state.selectedRoom?.BookingCode;
 
+      const userDataStr = localStorage.getItem("user");
+      let loggedInUserId = '';
+      let loggedInEmail = '';
+      if (userDataStr) {
+          try {
+              const parsedUser = JSON.parse(userDataStr);
+              loggedInUserId = parsedUser._id || '';
+              loggedInEmail = parsedUser.email || '';
+          } catch(e) {}
+      }
+
       const res = await fetch(`${HOTEL_API}/book`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -216,6 +366,8 @@ export default function HotelCheckout() {
           RequestedBookingMode: 5,
           NoOfRooms: state.rooms || 1,
           HotelRoomsDetails: hotelRoomsDetails,
+          userId: loggedInUserId,
+          email: loggedInEmail,
         }),
       });
 
@@ -260,9 +412,16 @@ export default function HotelCheckout() {
       });
     } catch (err) {
       console.error(err);
-      setErrorMsg(err.message || 'Booking failed. Please try again.');
+      const message = err.message || 'Booking failed. Please try again.';
+      // If payment was verified but booking failed, reassure the user
+      if (paymentStatus === 'booking') {
+        setErrorMsg(`Your payment was successful, but the hotel booking failed at the supplier: ${message}. Your money is safe and will be automatically refunded within 5-7 business days.`);
+      } else {
+        setErrorMsg(message);
+      }
     } finally {
       setIsBooking(false);
+      setPaymentStatus('idle');
     }
   };
 
@@ -283,10 +442,22 @@ export default function HotelCheckout() {
 
   return (
     <>
-      <HeaderOne />
+      {paymentStatus === 'booking' && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: '#fff', zIndex: 9999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: '80px', height: '80px', border: '6px solid #f1f5f9', borderTopColor: '#e8151b', borderRadius: '50%', animation: 'spin 1s linear infinite', marginBottom: '32px' }}></div>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: '28px', color: '#1a1a2e', marginBottom: '12px' }}>Confirming Your Booking</h2>
+          <p style={{ color: '#64748b', fontSize: '16px', maxWidth: '450px', textAlign: 'center', lineHeight: '1.6' }}>
+            Your payment was successful. Please wait while we securely confirm your reservation with the hotel supplier.<br/><br/>
+            <strong style={{ color: '#e8151b' }}>Do not refresh the page or press back.</strong>
+          </p>
+        </div>
+      )}
+
+
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800&display=swap');
-        .hco-page { background: #f1f5f9; min-height: 100vh; font-family: 'Inter', sans-serif; padding-top: 80px; }
+        .hco-page { background: #f1f5f9; min-height: 100vh; font-family: 'Inter', sans-serif; padding-top: 20px; }
         .hco-container { max-width: 1200px; margin: 0 auto; padding: 32px 20px 60px; }
         .hco-grid { display: grid; grid-template-columns: 1fr 380px; gap: 28px; }
         @media(max-width: 960px) { .hco-grid { grid-template-columns: 1fr; } }
@@ -318,11 +489,21 @@ export default function HotelCheckout() {
         .hco-summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; background: #f8fafc; padding: 16px; border-radius: 12px; }
         .hco-contact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
         .hco-guest-grid { display: grid; grid-template-columns: 120px 1fr 1fr; gap: 12px; margin-bottom: 8px; }
+        .hco-hotel-name-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
         
+        @media(max-width: 960px) {
+          .hco-grid { grid-template-columns: 1fr; }
+        }
+
         @media(max-width: 600px) {
           .hco-summary-grid { grid-template-columns: 1fr; }
           .hco-contact-grid { grid-template-columns: 1fr; }
-          .hco-guest-grid { grid-template-columns: 1fr; }
+          .hco-guest-grid { grid-template-columns: 100px 1fr; }
+          .hco-guest-grid > *:nth-child(3) { grid-column: span 2; } /* Makes the last name input full width */
+          .hco-card { padding: 20px; }
+          .hco-hotel-img { height: 160px; }
+          .hco-hotel-name-row { flex-direction: column; align-items: flex-start; }
+          .hco-room-tag { align-self: flex-start; }
         }
       `}</style>
 
@@ -369,7 +550,7 @@ export default function HotelCheckout() {
                       className="hco-hotel-img"
                       onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&h=300'; }}
                     />
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div className="hco-hotel-name-row">
                       <div>
                         <div style={{ fontFamily: "'Outfit', sans-serif", fontWeight: '800', fontSize: '20px', color: '#1a1a2e', marginBottom: '4px' }}>{hotel.HotelName}</div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#64748b', fontSize: '13px', marginBottom: '10px' }}>
@@ -444,11 +625,28 @@ export default function HotelCheckout() {
                         />
                       </InputField>
                       <InputField label="Phone Number" id="contactPhone" required>
-                        <input
-                          id="contactPhone" type="tel" className="hco-input"
-                          placeholder="+91 98765 43210" value={contactPhone}
-                          onChange={e => setContactPhone(e.target.value)} required
-                        />
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <select 
+                            className="hco-input hco-select" 
+                            style={{ width: '110px', flexShrink: 0, padding: '0 30px 0 10px' }}
+                            value={contactCountryCode}
+                            onChange={e => setContactCountryCode(e.target.value)}
+                          >
+                            <option value="+91">+91 (IN)</option>
+                            <option value="+1">+1 (US)</option>
+                            <option value="+44">+44 (UK)</option>
+                            <option value="+971">+971 (AE)</option>
+                            <option value="+61">+61 (AU)</option>
+                          </select>
+                          <input
+                            id="contactPhone" type="tel" className="hco-input"
+                            placeholder="9876543210" value={contactPhone}
+                            onChange={e => {
+                                const val = e.target.value.replace(/\D/g, '');
+                                if (val.length <= 15) setContactPhone(val);
+                            }} required
+                          />
+                        </div>
                       </InputField>
                     </div>
                   </div>
@@ -556,14 +754,30 @@ export default function HotelCheckout() {
 
                     <button type="submit" className="hco-book-btn" disabled={isBooking}>
                       {isBooking ? (
-                        <><div style={{ width: '20px', height: '20px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }}></div> Booking...</>
+                        <><div style={{ width: '20px', height: '20px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }}></div> {
+                          paymentStatus === 'paying' ? 'Opening Payment...'
+                          : paymentStatus === 'verifying' ? 'Verifying Payment...'
+                          : paymentStatus === 'booking' ? 'Confirming Booking...'
+                          : 'Processing...'
+                        }</>
                       ) : (
-                        <><CreditCard size={18} /> Confirm & Book · ₹{grandTotal.toLocaleString()}</>
+                        <><CreditCard size={18} /> Confirm & Pay · ₹{grandTotal.toLocaleString()}</>
                       )}
                     </button>
 
-                    <div className="hco-secure-badge">
-                      <ShieldCheck size={14} color="#10b981" /> Secure 256-bit encrypted booking
+                    <div style={{ marginTop: '16px', fontSize: '12px', color: '#64748b', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                      <ShieldCheck size={14} color="#10b981" /> 100% Safe &amp; Secure Booking
+                    </div>
+                    <div style={{ marginTop: '12px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '6px' }}>Accepted Payment Methods</div>
+                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                            {['UPI', 'Cards', 'Net Banking', 'Wallets', 'QR'].map(m => (
+                                <span key={m} style={{ fontSize: '10px', fontWeight: '600', color: '#475569', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '4px', padding: '2px 7px' }}>{m}</span>
+                            ))}
+                        </div>
+                        <div style={{ marginTop: '8px', fontSize: '10px', color: '#b0bec5', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                            Powered by <span style={{ fontWeight: '800', color: '#528FF0' }}>Razorpay</span>
+                        </div>
                     </div>
 
                     <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #f1f5f9' }}>
@@ -581,6 +795,26 @@ export default function HotelCheckout() {
           )}
         </div>
       </div>
+      {showLoginPrompt && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999 }}>
+            <div style={{ background: '#fff', padding: '32px', borderRadius: '16px', textAlign: 'center', maxWidth: '420px', width: '90%', boxShadow: '0 20px 40px rgba(0,0,0,0.2)', fontFamily: "'Inter', sans-serif" }}>
+                <div style={{ width: '60px', height: '60px', background: '#fef2f2', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                    <i className="fa-solid fa-lock" style={{ fontSize: '24px', color: '#e8151b' }}></i>
+                </div>
+                <h3 style={{ marginTop: 0, color: '#1a1a2e', fontSize: '22px', fontWeight: '700', marginBottom: '12px' }}>Login Required</h3>
+                <p style={{ color: '#64748b', fontSize: '15px', lineHeight: '1.6', marginBottom: '24px' }}>
+                    Please login or create an account to securely continue with your booking.
+                </p>
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                    <button type="button" onClick={() => setShowLoginPrompt(false)} style={{ flex: 1, padding: '12px 0', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '15px', transition: 'background 0.2s' }} onMouseEnter={e => e.target.style.background = '#e2e8f0'} onMouseLeave={e => e.target.style.background = '#f1f5f9'}>Cancel</button>
+                    <button type="button" onClick={() => {
+                        setShowLoginPrompt(false);
+                        window.dispatchEvent(new Event('openLoginModal'));
+                    }} style={{ flex: 1, padding: '12px 0', background: '#e8151b', color: '#fff', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '15px', transition: 'background 0.2s' }} onMouseEnter={e => e.target.style.background = '#d01217'} onMouseLeave={e => e.target.style.background = '#e8151b'}>Login / Sign Up</button>
+                </div>
+            </div>
+        </div>
+      )}
 
       <FooterOne />
     </>

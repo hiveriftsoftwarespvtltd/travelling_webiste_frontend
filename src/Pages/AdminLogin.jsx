@@ -142,8 +142,9 @@ function AdminLogin() {
                         <input 
                             id="email"
                             type="email" 
-                            className="form-control" 
-                            placeholder="admin@tourm.com"
+                            name="email"
+                            className="form-control"
+                            placeholder="admin@jiyolife.com"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required

@@ -27,7 +27,10 @@ import HotelResults from './HotelResults'
 import HotelCheckout from './HotelCheckout'
 import HotelConfirmation from './HotelConfirmation'
 import HotelDetail from './HotelDetail'
+import HotelMyBookings from './HotelMyBookings'
 import MyBookings from './MyBookings'
+import FlightMyBookings from './FlightMyBookings'
+import FlightBookingDetails from './FlightBookingDetails'
 import ManageBooking from './ManageBooking'
 import UserProfile from './UserProfile'
 import CheckCancellationChargesInner from '../Components/Booking/CheckCancellationChargesInner'
@@ -80,15 +83,12 @@ function RouterPage() {
           <Route path="/hotel-checkout" element={<HotelCheckout />}></Route>
           <Route path="/hotel-confirmation" element={<HotelConfirmation />}></Route>
           <Route path="/my-bookings" element={<MyBookings />}></Route>
-
           <Route path="/manage-booking" element={<ManageBooking />}></Route>
           
           <Route path="/user-profile" element={<UserProfile />}>
-              <Route index element={<Navigate to="cancellation-charges" replace />} />
-              <Route path="cancellation-charges" element={<CheckCancellationChargesInner />} />
-              <Route path="release-booking" element={<ReleaseBookingInner />} />
-              <Route path="ticket-change-request" element={<TicketChangeRequestInner />} />
-              <Route path="track-change-request" element={<TrackChangeRequestInner />} />
+              <Route path="flight-bookings" element={<FlightMyBookings />} />
+              <Route path="hotel-bookings" element={<HotelMyBookings />} />
+              <Route path="flight-booking/:id" element={<FlightBookingDetails />} />
           </Route>
           
           <Route path="/resort" element={<Resort />}></Route>

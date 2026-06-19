@@ -420,7 +420,7 @@ function HeroSearchFilter() {
 
       setIsAirportLoading(true);
       try {
-        const flightApiBase = process.env.REACT_APP_API_URL || 'http://localhost:8009/api';
+        const flightApiBase = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8009/api';
         const response = await fetch(`${flightApiBase}/airports/search?q=${searchQuery}`);
         const data = await response.json();
         if (data && data.success) {

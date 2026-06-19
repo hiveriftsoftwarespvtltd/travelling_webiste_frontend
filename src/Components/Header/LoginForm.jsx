@@ -32,9 +32,7 @@ function LoginForm({ isOpen, onClose }) {
     }, [isOpen, onClose]);
 
     if (!isOpen) return null;
-
-    const API_BASE = "http://localhost:8009/api/auth";
-
+    const API_BASE = `${(process.env.REACT_APP_API_BASE_URL || 'http://localhost:8009/api').replace(/\/$/, '')}/auth`;
     const showMessage = (text, type = "error") => {
         setMessage({ text, type });
         setTimeout(() => setMessage({ text: "", type: "" }), 5000);
@@ -81,10 +79,7 @@ function LoginForm({ isOpen, onClose }) {
             });
             const data = await res.json();
             if (res.ok) {
-                // Log OTP for easy testing
-                if (data.otp) {
-                    console.log(`%c🔐 OTP RECEIVED: ${data.otp}`, "color: white; background: #E8151B; font-size: 16px; padding: 4px 8px; border-radius: 4px;");
-                }
+
                 showMessage("Registration successful! Please check your email for the OTP.", "success");
                 setActiveTab("verify_signup");
             } else {
@@ -132,10 +127,7 @@ function LoginForm({ isOpen, onClose }) {
             });
             const data = await res.json();
             if (res.ok) {
-                // Log OTP for easy testing
-                if (data.otp) {
-                    console.log(`%c🔐 FORGOT PASSWORD OTP RECEIVED: ${data.otp}`, "color: white; background: #E8151B; font-size: 16px; padding: 4px 8px; border-radius: 4px;");
-                }
+
                 showMessage("OTP sent to your email!", "success");
                 setActiveTab("reset_password");
             } else {
