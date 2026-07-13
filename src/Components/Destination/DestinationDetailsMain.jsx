@@ -263,7 +263,7 @@ function DestinationDetailsMain() {
                                     )}
                                     <div className="tour-action" style={{ marginTop: '16px' }}>
                                
-                                        <Link to="/checkout" className="th-btn style4 " style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>Book Now <ArrowRight size={16} /></Link>
+                                        <Link to="/checkout" state={{ tourId: destinationPost._id, tourName: destinationPost.name }} className="th-btn style4 " style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>Book Now <ArrowRight size={16} /></Link>
                                     </div>
                                 </div>
                             </div>

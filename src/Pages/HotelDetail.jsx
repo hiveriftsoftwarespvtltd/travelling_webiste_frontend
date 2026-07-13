@@ -2,16 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import HeaderOne from '../Components/Header/HeaderOne';
 import FooterOne from '../Components/Footer/FooterOne';
-import { MapPin, Star, Building2, Coffee, CheckCircle2, ChevronRight, Info, ShieldCheck, Dumbbell, Waves, Wifi, Car, CalendarDays, Loader2 } from 'lucide-react';
+import { MapPin, Star, Building2, ChevronRight, Info, ShieldCheck, CalendarDays, Loader2, Coffee, CheckCircle2 } from 'lucide-react';
+import HotelAmenitiesParser from '../Components/Hotel/HotelAmenitiesParser';
 
 const HOTEL_API = process.env.REACT_APP_HOTEL_API_BASE_URL || 'http://localhost:8009/api/hotel';
 
 const MEAL_TYPES = { 0: 'Room Only', 1: 'Breakfast Included', 2: 'Half Board', 3: 'Full Board', 4: 'All Inclusive' };
-
-const AMENITY_ICONS = {
-  'Wi-Fi': <Wifi size={16} />, 'Parking': <Car size={16} />, 'Restaurant': <Coffee size={16} />,
-  'Gym': <Dumbbell size={16} />, 'Pool': <Waves size={16} />,
-};
 
 function StarRating({ rating }) {
   const stars = Math.round(rating || 0);
@@ -110,7 +106,6 @@ export default function HotelDetail() {
   const name = hotelStatic?.HotelName || hotelDynamic.HotelName;
   const address = hotelStatic?.Address || hotelDynamic.HotelAddress || hotelDynamic.HotelLocation;
   const description = hotelStatic?.Description || 'Enjoy a wonderful stay at this premium property offering best-in-class amenities and exceptional hospitality.';
-  const facilities = hotelStatic?.Facilities || hotelDynamic.HotelFacilities || ['Wi-Fi', 'Parking', 'Room Service', 'Air Conditioning'];
   
   const nights = state.nights || 1;
 
@@ -165,12 +160,6 @@ export default function HotelDetail() {
         .hd-section-title { font-family: 'Outfit', sans-serif; font-size: 22px; font-weight: 700; color: #1a1a2e; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
         .hd-desc { font-size: 15px; color: #475569; line-height: 1.7; }
         
-        /* Amenities */
-        .hd-amenities { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; }
-        @media(max-width: 480px) { .hd-amenities { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; } }
-        .hd-amenity-item { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #334155; font-weight: 500; }
-        .hd-amenity-icon { width: 32px; height: 32px; border-radius: 8px; background: #f1f5f9; display: flex; align-items: center; justify-content: center; color: #e8151b; flex-shrink: 0; }
-
         /* Rooms Section */
         .hd-rooms-title { font-family: 'Outfit', sans-serif; font-size: 28px; font-weight: 800; color: #1a1a2e; margin: 40px 0 20px; }
         .hd-room-card { background: #fff; border: 1.5px solid #e2e8f0; border-radius: 16px; padding: 24px; margin-bottom: 16px; display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: center; transition: all 0.2s; }
@@ -254,16 +243,12 @@ export default function HotelDetail() {
 
               <div className="hd-section">
                 <h2 className="hd-section-title"><Building2 size={24} color="#e8151b"/> Amenities & Facilities</h2>
-                <div className="hd-amenities">
-                  {facilities.map((fac, idx) => (
-                    <div key={idx} className="hd-amenity-item">
-                      <div className="hd-amenity-icon">
-                        {AMENITY_ICONS[fac] || <CheckCircle2 size={16} />}
-                      </div>
-                      {fac}
-                    </div>
-                  ))}
-                </div>
+                <HotelAmenitiesParser 
+                  hotelStatic={hotelStatic} 
+                  hotelDynamic={hotelDynamic} 
+                  rooms={rooms}
+                  hotelName={name}
+                />
               </div>
             </div>
 

@@ -1,6 +1,41 @@
-import React from 'react';
+import React, { useState } from 'react';
+import axios from 'axios';
 
 function BookATour() {
+    const [name, setName] = useState('');
+    const [email, setEmail] = useState('');
+    const [mobile, setMobile] = useState('');
+    const [subject, setSubject] = useState('');
+    const [message, setMessage] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [success, setSuccess] = useState(false);
+    const [errorMsg, setErrorMsg] = useState('');
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setErrorMsg('');
+
+        try {
+            const payload = { name, email, mobile, subject, message };
+            const res = await axios.post(`${process.env.REACT_APP_API_BASE_URL}/contact-enquiries`, payload);
+            if (res.status === 200 || res.status === 201) {
+                setSuccess(true);
+                setName('');
+                setEmail('');
+                setMobile('');
+                setSubject('');
+                setMessage('');
+                setTimeout(() => setSuccess(false), 5000);
+            }
+        } catch (err) {
+            console.error('Failed to submit contact enquiry', err);
+            setErrorMsg(err.response?.data?.message || 'Failed to send message. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div className="contact-form-map-section" style={{ padding: '0px 0 100px', backgroundColor: '#e2e8f0' }}>
             <style>{`
@@ -87,12 +122,6 @@ function BookATour() {
                     background-repeat: no-repeat;
                     background-position: right 15px center;
                 }
-                input[type="date"].cfm-control {
-                    color: #999;
-                }
-                input[type="date"].cfm-control::-webkit-calendar-picker-indicator {
-                    opacity: 0.5;
-                }
                 
                 .cfm-submit-btn {
                     background: #e8151b;
@@ -150,48 +179,57 @@ function BookATour() {
                             Fill out the form and our team will get back to you shortly.
                         </div>
 
-                        <form onSubmit={(e) => e.preventDefault()}>
+                        {success && (
+                            <div className="alert alert-success mb-4" style={{ borderRadius: '8px', padding: '12px 16px' }}>
+                                <i className="fa-solid fa-circle-check me-2" />
+                                Your message was sent successfully! We will contact you soon.
+                            </div>
+                        )}
+
+                        {errorMsg && (
+                            <div className="alert alert-danger mb-4" style={{ borderRadius: '8px', padding: '12px 16px' }}>
+                                <i className="fa-solid fa-triangle-exclamation me-2" />
+                                {errorMsg}
+                            </div>
+                        )}
+
+                        <form onSubmit={handleSubmit}>
                             <div className="row">
                                 <div className="col-md-6 cfm-input-group">
-                                    <input type="text" className="cfm-control" placeholder="Full Name" required />
+                                    <input 
+                                        type="text" className="cfm-control" placeholder="Full Name *" 
+                                        value={name} onChange={(e) => setName(e.target.value)} required 
+                                    />
                                 </div>
                                 <div className="col-md-6 cfm-input-group">
-                                    <input type="email" className="cfm-control" placeholder="Email Address" required />
-                                </div>
-
-                                <div className="col-md-6 cfm-input-group">
-                                    <select className="cfm-control" defaultValue="">
-                                        <option value="" disabled>Where do you want to go?</option>
-                                        <option value="Asia">Asia</option>
-                                        <option value="Europe">Europe</option>
-                                        <option value="Africa">Africa</option>
-                                        <option value="Americas">Americas</option>
-                                    </select>
+                                    <input 
+                                        type="email" className="cfm-control" placeholder="Email Address *" 
+                                        value={email} onChange={(e) => setEmail(e.target.value)} required 
+                                    />
                                 </div>
                                 <div className="col-md-6 cfm-input-group">
-                                    <input type="text" onFocus={(e) => e.target.type = 'date'} onBlur={(e) => { if (!e.target.value) e.target.type = 'text'; }} className="cfm-control" placeholder="Travel Date" />
-                                </div>
-
-                                <div className="col-md-6 cfm-input-group">
-                                    <select className="cfm-control" defaultValue="">
-                                        <option value="" disabled>Number of Travelers</option>
-                                        <option value="1">1 Traveler</option>
-                                        <option value="2">2 Travelers</option>
-                                        <option value="3-5">3 - 5 Travelers</option>
-                                        <option value="6+">6+ Travelers</option>
-                                    </select>
+                                    <input 
+                                        type="tel" className="cfm-control" placeholder="Mobile Number *" 
+                                        value={mobile} onChange={(e) => setMobile(e.target.value)} required 
+                                    />
                                 </div>
                                 <div className="col-md-6 cfm-input-group">
-                                    <input type="text" className="cfm-control" placeholder="Budget (Optional)" />
+                                    <input 
+                                        type="text" className="cfm-control" placeholder="Subject (Optional)" 
+                                        value={subject} onChange={(e) => setSubject(e.target.value)} 
+                                    />
                                 </div>
 
                                 <div className="col-12 cfm-input-group">
-                                    <textarea className="cfm-control" placeholder="Message" rows="4"></textarea>
+                                    <textarea 
+                                        className="cfm-control" placeholder="Your Message *" rows="4"
+                                        value={message} onChange={(e) => setMessage(e.target.value)} required
+                                    ></textarea>
                                 </div>
 
                                 <div className="col-12 mt-2">
-                                    <button type="submit" className="cfm-submit-btn">
-                                        <i className="fa-regular fa-paper-plane"></i> Send Enquiry
+                                    <button type="submit" className="cfm-submit-btn" disabled={loading}>
+                                        <i className="fa-regular fa-paper-plane"></i> {loading ? 'Sending...' : 'Send Enquiry'}
                                     </button>
                                 </div>
                             </div>
@@ -228,4 +266,4 @@ function BookATour() {
     )
 }
 
-export default BookATour
+export default BookATour;

@@ -938,7 +938,11 @@ function HeroSearchFilter() {
                   <div className="sf-radio-circle"><div className="sf-radio-dot"></div></div>
                   Round Trip
                 </label>
-
+                <label className={`sf-radio-label ${tripType === 'M' ? 'active' : ''}`}>
+                  <input type="radio" name="tripType" value="M" checked={tripType === 'M'} onChange={() => setTripType('M')} />
+                  <div className="sf-radio-circle"><div className="sf-radio-dot"></div></div>
+                  Multi City
+                </label>
               </div>
 
               {tripType === 'M' ? (
@@ -1159,7 +1163,7 @@ function HeroSearchFilter() {
                               </div>
                             )}
                           </div>
-                        ) : index === multiCitySegments.length - 1 && multiCitySegments.length < 5 ? (
+                        ) : index === multiCitySegments.length - 1 && multiCitySegments.length < 6 ? (
                           <div style={{ flex: 1.15, display: 'flex', alignItems: 'center', paddingLeft: '12px' }}>
                             <button className="sf-add-another-city-btn" onClick={handleAddSegment}>
                               + Add Another City

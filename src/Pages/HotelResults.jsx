@@ -17,8 +17,20 @@ const AMENITY_ICONS = {
 
 const MEAL_TYPES = { 0: 'Room Only', 1: 'Breakfast', 2: 'Half Board', 3: 'Full Board', 4: 'All Inclusive' };
 
+const getGlobalRatingNumber = (ratingStr) => {
+  if (typeof ratingStr === 'number') return ratingStr;
+  if (!ratingStr) return 0;
+  const s = ratingStr.toString().toLowerCase();
+  if (s.includes('five') || s.includes('5')) return 5;
+  if (s.includes('four') || s.includes('4')) return 4;
+  if (s.includes('three') || s.includes('3')) return 3;
+  if (s.includes('two') || s.includes('2')) return 2;
+  if (s.includes('one') || s.includes('1')) return 1;
+  return 0;
+};
+
 function StarRating({ rating }) {
-  const stars = Math.round(rating || 0);
+  const stars = Math.round(getGlobalRatingNumber(rating) || 3);
   return (
     <span style={{ display: 'inline-flex', gap: '2px' }}>
       {[1, 2, 3, 4, 5].map(i => (
@@ -77,12 +89,12 @@ export default function HotelResults() {
         ResponseTime: 23.0,
         IsDetailedResponse: true,
         Filters: {
-          Refundable: refundableOnly,
+          Refundable: false,
           NoOfRooms: 0,
-          MealType: mealFilter,
+          MealType: 0,
           OrderBy: 0,
-          StarRating: selectedStars.length === 1 ? selectedStars[0] : 0,
-          HotelName: hotelNameFilter || null,
+          StarRating: 0,
+          HotelName: null,
         },
       };
 
@@ -135,7 +147,7 @@ export default function HotelResults() {
     } finally {
       setIsLoading(false);
     }
-  }, [refundableOnly, mealFilter, selectedStars, hotelNameFilter]);
+  }, []);
 
   useEffect(() => {
     if (!searchState) { navigate('/'); return; }
@@ -160,17 +172,23 @@ export default function HotelResults() {
         if (!priceMatched) return false;
       }
 
-      if (selectedStars.length > 0 && !selectedStars.includes(Math.round(h.HotelRating))) return false;
+      if (hotelNameFilter) {
+        if (!(h.HotelName || '').toLowerCase().includes(hotelNameFilter.toLowerCase())) return false;
+      }
+
+      const ratingNum = getGlobalRatingNumber(h.HotelRating || h.StarRating || 3);
+
+      if (selectedStars.length > 0 && !selectedStars.includes(Math.round(ratingNum))) return false;
       
-      // Guest Rating Filter (mocked from HotelRating: 5=Excellent, 4=Very Good, 3=Good)
+      // Guest Rating Filter
       if (selectedGuestRatings.length > 0) {
-        const ratingMatch = (h.HotelRating >= 4.5 && selectedGuestRatings.includes('Excellent')) ||
-                            (h.HotelRating >= 3.5 && h.HotelRating < 4.5 && selectedGuestRatings.includes('Very Good')) ||
-                            (h.HotelRating >= 2.5 && h.HotelRating < 3.5 && selectedGuestRatings.includes('Good'));
+        const ratingMatch = (ratingNum >= 4.5 && selectedGuestRatings.includes('Excellent')) ||
+                            (ratingNum >= 3.5 && ratingNum < 4.5 && selectedGuestRatings.includes('Very Good')) ||
+                            (ratingNum >= 2.5 && ratingNum < 3.5 && selectedGuestRatings.includes('Good'));
         if (!ratingMatch) return false;
       }
 
-      // Property Type Filter (inferred from name)
+      // Property Type Filter
       if (selectedPropertyTypes.length > 0) {
         const hName = (h.HotelName || '').toLowerCase();
         let pType = 'hotel'; // Default
@@ -184,9 +202,20 @@ export default function HotelResults() {
 
       // Amenities Filter
       if (selectedAmenities.length > 0) {
-        const facs = (h.HotelFacilities || []).map(f => f.toLowerCase());
-        const hasAllAmenities = selectedAmenities.every(a => facs.some(f => f.includes(a.toLowerCase())));
-        if (!hasAllAmenities) return false;
+        const facsData = h.HotelFacilities || h.Facilities || h.HotelFacility || '';
+        let facsStr = '';
+        if (typeof facsData === 'string') facsStr = facsData;
+        else if (Array.isArray(facsData)) facsStr = facsData.join(' ');
+        
+        facsStr = facsStr.toLowerCase();
+        
+        // If API doesn't return amenities data on the search page, it's safer to show the hotel 
+        // than to filter it out. We only filter out if it definitively does NOT have the amenity.
+        const hasAllAmenities = selectedAmenities.every(a => facsStr.includes(a.toLowerCase()));
+        
+        // Only return false (hide the hotel) if we actually HAVE facilities data and it doesn't match.
+        // If we have NO data, we let it pass because we don't want to hide potentially valid hotels.
+        if (facsStr.length > 0 && !hasAllAmenities) return false; 
       }
 
       return true;
@@ -196,7 +225,8 @@ export default function HotelResults() {
       const pb = b.Rooms?.[0]?.TotalFare ?? b.MinPrice ?? 0;
       if (sortBy === 'price_asc') return pa - pb;
       if (sortBy === 'price_desc') return pb - pa;
-      if (sortBy === 'rating') return (b.HotelRating || 0) - (a.HotelRating || 0);
+      
+      if (sortBy === 'rating') return getGlobalRatingNumber(b.HotelRating || b.StarRating || 3) - getGlobalRatingNumber(a.HotelRating || a.StarRating || 3);
       return 0;
     });
 
@@ -224,12 +254,24 @@ export default function HotelResults() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800&display=swap');
         .hr-page { background: #eaeaef; min-height: 100vh; font-family: 'Inter', sans-serif; }
-        .hr-topbar { background: linear-gradient(135deg, #0a1128 0%, #162b4d 100%); padding: 60px 0 40px; color: #fff; }
-        .hr-topbar-inner { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
-        .hr-breadcrumb { font-size: 13px; color: rgba(255,255,255,0.7); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; font-weight: 500;}
-        .hr-topbar h1 { font-family: 'Outfit', sans-serif; font-size: clamp(1.6rem, 3vw, 2.4rem); font-weight: 800; margin: 0 0 8px; }
-        .hr-topbar-meta { display: flex; gap: 20px; flex-wrap: wrap; font-size: 14px; color: rgba(255,255,255,0.9); font-weight: 500;}
-        .hr-topbar-meta span { display: flex; align-items: center; gap: 6px; }
+        .hr-topbar { position: relative; background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); padding: 60px 0 50px; color: #ffffff !important; overflow: hidden; }
+        .hr-topbar::before { content: ''; position: absolute; top: -50%; left: -10%; width: 60%; height: 200%; background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, rgba(0,0,0,0) 70%); pointer-events: none; }
+        .hr-topbar::after { content: ''; position: absolute; bottom: -50%; right: -10%; width: 50%; height: 200%; background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(0,0,0,0) 70%); pointer-events: none; }
+        .hr-topbar-inner { max-width: 1200px; margin: 0 auto; padding: 0 20px; position: relative; z-index: 1; }
+        .hr-breadcrumb { font-size: 13px; color: rgba(255,255,255,0.8); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+        .hr-breadcrumb span { transition: color 0.2s; color: rgba(255,255,255,0.8); }
+        .hr-breadcrumb span[style*="cursor: pointer"]:hover { color: #ffffff; }
+        .hr-topbar h1 { font-family: 'Outfit', sans-serif; font-size: clamp(2rem, 4vw, 3.2rem); font-weight: 800; margin: 0 0 24px; letter-spacing: -0.5px; color: #ffffff !important; }
+        .hr-topbar-meta { display: flex; gap: 12px; flex-wrap: wrap; }
+        .hr-topbar-meta span.hr-meta-pill { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); padding: 10px 18px; border-radius: 30px; font-size: 14px; color: #ffffff; font-weight: 500; backdrop-filter: blur(10px); }
+        .hr-topbar-meta span.hr-modify-btn { display: inline-flex; align-items: center; gap: 8px; background: #ffffff; padding: 10px 24px; border-radius: 30px; cursor: pointer; font-size: 15px; font-weight: 700; color: #1e3a8a; box-shadow: 0 4px 15px rgba(0,0,0,0.15); transition: all 0.3s ease; }
+        .hr-topbar-meta span.hr-modify-btn:hover { background: #f8fafc; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.2); }
+        @media(max-width: 600px) {
+            .hr-topbar { padding: 40px 0 30px; }
+            .hr-topbar h1 { font-size: 1.8rem; margin-bottom: 16px; }
+            .hr-topbar-meta { gap: 8px; }
+            .hr-topbar-meta span.hr-meta-pill, .hr-topbar-meta span.hr-modify-btn { padding: 6px 12px; font-size: 12px; }
+        }
         
         .hr-content { max-width: 1200px; margin: 40px auto 0; padding: 0 20px 40px; display: grid; grid-template-columns: 280px 1fr; gap: 32px; }
         @media(max-width: 900px) { .hr-content { grid-template-columns: 1fr; margin-top: 20px; } .hr-sidebar { display: none; } .hr-sidebar.mobile-open { display: block; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9999; background: #fff; padding: 0; margin: 0; overflow-y: auto; } .hr-sidebar.mobile-open .hr-sidebar-card { border: none; box-shadow: none; border-radius: 0; margin: 0; } }
@@ -244,7 +286,7 @@ export default function HotelResults() {
         .hr-sidebar-body::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
         .hr-filter-section { margin-bottom: 24px; }
         .hr-filter-title { font-size: 16px; font-weight: 600; color: #1a1a2e; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
-        .hr-filter-label { display: flex; align-items: flex-start; gap: 12px; font-size: 14px; font-weight: 500; color: #1a1a2e; cursor: pointer; margin-bottom: 16px; }
+        .hr-filter-label { display: flex; align-items: flex-start; gap: 12px; font-size: 14px; font-weight: 500; color: #1a1a2e; cursor: pointer; margin-bottom: 16px; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; outline: none; }
         .hr-filter-label input[type="checkbox"] { 
             display: block !important; 
             visibility: visible !important; 
@@ -256,6 +298,9 @@ export default function HotelResults() {
             accent-color: #008cff; 
             cursor: pointer; 
             margin: 2px 0 0 0 !important; 
+            outline: none !important;
+            box-shadow: none !important;
+            -webkit-tap-highlight-color: transparent;
             appearance: auto !important; 
             -webkit-appearance: checkbox !important;
         }
@@ -348,11 +393,10 @@ export default function HotelResults() {
             </div>
             <h1>Hotels in {searchState?.cityName}, {searchState?.cityCountry}</h1>
             <div className="hr-topbar-meta">
-              <span><Calendar size={14} /> {searchState?.checkIn} → {searchState?.checkOut} ({nights} night{nights > 1 ? 's' : ''})</span>
-              <span><Users size={14} /> {searchState?.rooms} Room · {searchState?.adults} Adult{searchState?.adults > 1 ? 's' : ''}</span>
-              <span style={{ color: '#e8151b', background: 'rgba(232,21,27,0.15)', padding: '2px 10px', borderRadius: '20px', cursor: 'pointer' }}
-                onClick={() => navigate('/', { state: { activeTabId: 'hotels' } })}>
-                <RefreshCw size={12} /> Modify Search
+              <span className="hr-meta-pill"><Calendar size={14} /> {searchState?.checkIn} → {searchState?.checkOut} ({nights} night{nights > 1 ? 's' : ''})</span>
+              <span className="hr-meta-pill"><Users size={14} /> {searchState?.rooms} Room · {searchState?.adults} Adult{searchState?.adults > 1 ? 's' : ''}</span>
+              <span className="hr-modify-btn" onClick={() => navigate('/', { state: { activeTabId: 'hotels' } })}>
+                <RefreshCw size={14} /> Modify Search
               </span>
             </div>
           </div>

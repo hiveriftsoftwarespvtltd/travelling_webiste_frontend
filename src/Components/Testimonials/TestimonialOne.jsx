@@ -123,6 +123,31 @@ const ReviewCard = React.memo(({ item, onReadMore }) => {
    Swiper never sees a React re-render -> autoplay never stops.
 --------------------------------------------------------- */
 function TestimonialOne() {
+  const [reviewsList, setReviewsList] = React.useState(testimonials);
+
+  React.useEffect(() => {
+    fetch(`${process.env.REACT_APP_API_BASE_URL}/reviews`)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          const colors = ["#1967d2", "#ea4335", "#fbbc04", "#34a853"];
+          const formatted = data
+            .filter(r => r.status !== 'Inactive')
+            .map((r, idx) => ({
+              _id: r._id,
+              name: r.name,
+              rating: r.rating || 5,
+              time: r.createdAt ? new Date(r.createdAt).toLocaleDateString() : 'Recent',
+              color: colors[idx % colors.length],
+              text: r.comment || r.text || ''
+            }));
+          if (formatted.length > 0) {
+            setReviewsList(formatted);
+          }
+        }
+      })
+      .catch(err => console.error('Failed to fetch reviews:', err));
+  }, []);
 
   /* modal DOM refs */
   const overlayRef = useRef(null);
@@ -199,7 +224,7 @@ function TestimonialOne() {
 
           {/* slider */}
           <div style={{ padding: "0 20px" }}>
-            {testimonials.length > 0 && (
+            {reviewsList.length > 0 && (
             <Swiper
               onSwiper={(swiper) => (swiperRef.current = swiper)}
               modules={[Autoplay, FreeMode]}
@@ -218,7 +243,7 @@ function TestimonialOne() {
               }}
               style={{ paddingBottom: 20 }}
             >
-              {testimonials.map((item, idx) => (
+              {reviewsList.map((item, idx) => (
                 <SwiperSlide key={item._id || idx} style={{ height: "auto" }}>
                   <ReviewCard item={item} onReadMore={() => openModal(item)} />
                 </SwiperSlide>

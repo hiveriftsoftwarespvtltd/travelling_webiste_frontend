@@ -1,7 +1,45 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
+import axios from 'axios';
 
 function FooterOne() {
+    const [email, setEmail] = useState('');
+    const [status, setStatus] = useState({ type: '', text: '' });
+    const [settings, setSettings] = React.useState({
+        facebookUrl: 'https://www.facebook.com/share/1asni32Bye/',
+        instagramUrl: 'https://www.instagram.com/jiyolife_travel/',
+        youtubeUrl: 'https://youtube.com',
+        linkedinUrl: 'https://linkedin.com'
+    });
+
+    React.useEffect(() => {
+        axios.get(`${process.env.REACT_APP_API_BASE_URL}/settings`)
+            .then(res => {
+                if (res.data) {
+                    setSettings(res.data);
+                }
+            })
+            .catch(err => console.error('Failed to fetch settings for footer:', err));
+    }, []);
+
+    const handleSubscribe = async (e) => {
+        e.preventDefault();
+        if (!email) return;
+
+        try {
+            const res = await axios.post(`${process.env.REACT_APP_API_BASE_URL}/newsletter/subscribe`, { email });
+            if (res.status === 200 || res.status === 201) {
+                setStatus({ type: 'success', text: 'Subscribed successfully!' });
+                setEmail('');
+            }
+        } catch (err) {
+            console.error('Newsletter error:', err);
+            setStatus({ type: 'danger', text: err.response?.data?.message || 'Subscription failed.' });
+        } finally {
+            setTimeout(() => setStatus({ type: '', text: '' }), 5000);
+        }
+    };
+
     return (
         <footer className="footer-wrapper" style={{ backgroundColor: '#fff', borderTop: '1px solid #f1f5f9', fontFamily: "'Inter', sans-serif", marginTop: '80px' }}>
             <style>{`
@@ -33,7 +71,7 @@ function FooterOne() {
                     font-weight: 700;
                     color: #0f172a;
                 }
-
+ 
                 /* Footer Widgets */
                 .ft-widget-title {
                     font-size: 14px;
@@ -61,7 +99,7 @@ function FooterOne() {
                 .ft-links a:hover {
                     color: #e8151b;
                 }
-
+ 
                 /* Newsletter */
                 .ft-newsletter-text {
                     font-size: 12px;
@@ -107,7 +145,7 @@ function FooterOne() {
                 .ft-newsletter-form button:hover {
                     background-color: #c11217;
                 }
-
+ 
                 /* Socials */
                 .ft-socials {
                     display: flex;
@@ -130,7 +168,7 @@ function FooterOne() {
                     background-color: #e8151b;
                     color: #fff;
                 }
-
+ 
                 /* Bottom */
                 .ft-bottom {
                     text-align: center;
@@ -139,7 +177,7 @@ function FooterOne() {
                     padding-top: 0px;
                     margin-top: -25px;
                 }
-
+ 
                 /* Mobile overrides */
                 @media (max-width: 991px) {
                     .ft-features-row {
@@ -153,8 +191,6 @@ function FooterOne() {
             `}</style>
 
             <div className="container professional-footer" style={{ paddingLeft: '8%', paddingRight: '8%' }}>
-
-                {/* Top Features removed as requested */}
 
                 {/* Main Content */}
                 <div className="row">
@@ -211,17 +247,27 @@ function FooterOne() {
                         <p className="ft-newsletter-text">
                             Subscribe to get exclusive deals and travel inspiration.
                         </p>
-                        <form className="ft-newsletter-form" onSubmit={(e) => e.preventDefault()}>
-                            <input type="email" placeholder="Enter your email" required />
+
+                        {status.text && (
+                            <div className={`alert alert-${status.type} p-1 mb-2`} style={{ fontSize: '11px', borderRadius: '4px' }}>
+                                {status.text}
+                            </div>
+                        )}
+
+                        <form className="ft-newsletter-form" onSubmit={handleSubscribe}>
+                            <input
+                                type="email" placeholder="Enter your email"
+                                value={email} onChange={(e) => setEmail(e.target.value)} required
+                            />
                             <button type="submit">
                                 <i className="fa-solid fa-arrow-up" style={{ transform: 'rotate(45deg)', fontSize: '14px' }} />
                             </button>
                         </form>
                         <div className="ft-socials">
-                            <a href="https://www.facebook.com/share/1asni32Bye/" target="_blank" rel="noreferrer"><i className="fab fa-facebook-f" /></a>
-                            <a href="https://www.instagram.com/jiyolife_travel/" target="_blank" rel="noreferrer"><i className="fab fa-instagram" /></a>
-                            <a href="https://twitter.com" target="_blank" rel="noreferrer"><i className="fab fa-twitter" /></a>
-                            <a href="https://youtube.com" target="_blank" rel="noreferrer"><i className="fab fa-youtube" /></a>
+                            {settings.facebookUrl && <a href={settings.facebookUrl} target="_blank" rel="noreferrer"><i className="fab fa-facebook-f" /></a>}
+                            {settings.instagramUrl && <a href={settings.instagramUrl} target="_blank" rel="noreferrer"><i className="fab fa-instagram" /></a>}
+                            {settings.linkedinUrl && <a href={settings.linkedinUrl} target="_blank" rel="noreferrer"><i className="fab fa-linkedin-in" /></a>}
+                            {settings.youtubeUrl && <a href={settings.youtubeUrl} target="_blank" rel="noreferrer"><i className="fab fa-youtube" /></a>}
                         </div>
                     </div>
                 </div>
@@ -236,4 +282,3 @@ function FooterOne() {
 }
 
 export default FooterOne
-

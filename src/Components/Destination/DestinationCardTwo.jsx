@@ -41,7 +41,7 @@ function DestinationCardTwo(props) {
                     <span>
                         <i className="fa-light fa-clock" />{destinationDuration || '7 Days'}
                     </span>
-                    <Link to="/checkout" className="th-btn style4 " style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>Book Now <ArrowRight size={16} /></Link>
+                    <Link to="/checkout" state={{ tourId: destinationID, tourName: destinationTitle }} className="th-btn style4 " style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>Book Now <ArrowRight size={16} /></Link>
                 </div>
             </div>
         </div>

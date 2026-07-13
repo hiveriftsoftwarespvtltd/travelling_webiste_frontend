@@ -30,11 +30,17 @@ function FlightResultsInner() {
     const [returnFlights, setReturnFlights] = useState([]);
     const [selectedOutbound, setSelectedOutbound] = useState(null);
     const [selectedReturn, setSelectedReturn] = useState(null);
+    
+    // Multi-City State
+    const [multiCityItineraries, setMultiCityItineraries] = useState([]);
+    const [selectedMultiCityFlights, setSelectedMultiCityFlights] = useState({});
+    const [activeMultiCityTab, setActiveMultiCityTab] = useState(0);
     const [showFareModal, setShowFareModal] = useState(false);
     const [isFareLoading, setIsFareLoading] = useState(false);
     const [fetchedFareData, setFetchedFareData] = useState(null);
     const [combinationError, setCombinationError] = useState('');
     const [isLoading, setIsLoading] = useState(true);
+    const [errorMessage, setErrorMessage] = useState(null);
     const [sortBy, setSortBy] = useState('price');
     const [calendarFares, setCalendarFares] = useState([]);
 
@@ -55,6 +61,7 @@ function FlightResultsInner() {
     useEffect(() => {
         const fetchFlights = async () => {
             setIsLoading(true);
+            setErrorMessage(null);
             try {
                 const ss = location.state || {};
                 const payload = {
@@ -68,19 +75,45 @@ function FlightResultsInner() {
                     Segments: ss.Segments || [{ Origin: ss.Origin || 'DEL', Destination: ss.Destination || 'BLR', FlightCabinClass: ss.FlightCabinClass || 1, PreferredDepartureTime: ss.PreferredDepartureTime || '2026-06-10T00:00:00', PreferredArrivalTime: ss.PreferredArrivalTime || '2026-06-10T00:00:00' }],
                     Sources: null
                 };
-                const base = process.env.REACT_APP_FLIGHT_API_BASE_URL || 'http://localhost:8009/api/flight';
+                let base = process.env.REACT_APP_FLIGHT_API_BASE_URL || 'http://localhost:8009/api/flight';
+                if (base.endsWith('/')) base = base.slice(0, -1);
                 const res = await fetch(`${base}/search`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 const data = await res.json();
+                
+                if (!res.ok) {
+                    setErrorMessage(data?.message || 'Failed to fetch flights. The server might be busy or timing out.');
+                    setFlights([]);
+                    setReturnFlights([]);
+                    return;
+                }
+
                 if (data?.Response?.Results) {
                     const tid = data.Response.TraceId;
-                    if (data.Response.Results[0]) {
-                        setFlights(data.Response.Results[0].map(f => ({ ...f, TraceId: tid })));
+                    if (parseInt(payload.JourneyType) === 3) {
+                        // Multi City
+                        if (data.Response.Results[0]) {
+                            setMultiCityItineraries(data.Response.Results[0].map(f => ({ ...f, TraceId: tid })));
+                        }
+                    } else {
+                        // One Way or Round Trip
+                        if (data.Response.Results[0]) {
+                            setFlights(data.Response.Results[0].map(f => ({ ...f, TraceId: tid })));
+                        }
+                        if (data.Response.Results[1]) {
+                            setReturnFlights(data.Response.Results[1].map(f => ({ ...f, TraceId: tid })));
+                        }
                     }
-                    if (data.Response.Results[1]) {
-                        setReturnFlights(data.Response.Results[1].map(f => ({ ...f, TraceId: tid })));
-                    }
+                } else if (data?.Response?.Error?.ErrorMessage) {
+                    setErrorMessage(data.Response.Error.ErrorMessage);
+                    setFlights([]);
+                    setReturnFlights([]);
+                    setMultiCityItineraries([]);
                 }
-            } catch (e) { console.error(e); }
+            } catch (e) { 
+                console.error(e); 
+                setErrorMessage('Network error while searching for flights.');
+                setFlights([]);
+            }
             finally { setIsLoading(false); }
         };
         fetchFlights();
@@ -181,6 +214,55 @@ function FlightResultsInner() {
     const filteredFlights = useMemo(() => getFilteredFlights(flights), [flights, activeFilters]);
     const filteredReturnFlights = useMemo(() => getFilteredFlights(returnFlights), [returnFlights, activeFilters]);
 
+    // ── Multi-City Segment Data Computation ──
+    const multiCitySegmentsData = useMemo(() => {
+        if (!multiCityItineraries.length) return [];
+        const numSegments = multiCityItineraries[0].Segments.length;
+        const segmentsArr = [];
+        
+        for (let i = 0; i < numSegments; i++) {
+            const uniqueMap = new Map();
+            multiCityItineraries.forEach(itin => {
+                const segOption = itin.Segments[i];
+                if (!segOption || segOption.length === 0) return;
+                
+                // Generate a unique key based on airline, flight number, and departure time for all legs in this segment
+                const key = segOption.map(leg => `${leg.Airline.AirlineCode}${leg.Airline.FlightNumber}-${leg.Origin.DepTime}`).join('|');
+                
+                if (!uniqueMap.has(key)) {
+                    uniqueMap.set(key, {
+                        id: key,
+                        legs: segOption,
+                        minFare: itin.Fare.PublishedFare,
+                        itineraryIds: [itin.ResultIndex]
+                    });
+                } else {
+                    const existing = uniqueMap.get(key);
+                    existing.itineraryIds.push(itin.ResultIndex);
+                    if (itin.Fare.PublishedFare < existing.minFare) {
+                        existing.minFare = itin.Fare.PublishedFare;
+                    }
+                }
+            });
+            segmentsArr.push(Array.from(uniqueMap.values()));
+        }
+        return segmentsArr;
+    }, [multiCityItineraries]);
+
+    const validMultiCityItinerary = useMemo(() => {
+        if (!multiCitySegmentsData.length) return null;
+        if (Object.keys(selectedMultiCityFlights).length !== multiCitySegmentsData.length) return null;
+        
+        return multiCityItineraries.find(itin => {
+            return itin.Segments.every((segOption, idx) => {
+                const selectedOpt = selectedMultiCityFlights[idx];
+                if (!selectedOpt) return false;
+                const key = segOption.map(leg => `${leg.Airline.AirlineCode}${leg.Airline.FlightNumber}-${leg.Origin.DepTime}`).join('|');
+                return key === selectedOpt.id;
+            });
+        });
+    }, [selectedMultiCityFlights, multiCityItineraries, multiCitySegmentsData.length]);
+
     // ── Sort ──
     const getSortedFlights = (flightList) => {
         return [...flightList].sort((a, b) => {
@@ -222,22 +304,12 @@ function FlightResultsInner() {
             fetch(`${base}/${endpoint}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 
         try {
-            // ── Per-leg calls (round trips: fetch each leg separately, then merge) ──
-            // Note: TBO FareQuote does NOT accept combined "R1,R2" ResultIndex for
-            // independently-selected flights. Only package round-trips from JourneyType=2
-            // return a single pre-combined ResultIndex. Since this app lets users mix
-            // outbound/return from Results[0] and Results[1], we always call per-leg.
-            // ── Per-leg calls (round trips: fetch each leg separately) ──
             const outPayload = { TraceId: selectedOutbound.TraceId, ResultIndex: selectedOutbound.ResultIndex };
             const retPayload = { TraceId: selectedReturn.TraceId,   ResultIndex: selectedReturn.ResultIndex };
 
-
-
-            // Fetch quote sequentially first to avoid TBO API concurrent lock errors (ErrorCode 28)
             const outQuoteRes = await post('fare-quote', outPayload).catch(() => null);
             const retQuoteRes = await post('fare-quote', retPayload).catch(() => null);
 
-            // Fetch other details concurrently only after quote checks
             const [
                 outRuleRes, outSsrRes, outUpsellRes,
                 retRuleRes, retSsrRes, retUpsellRes
@@ -266,12 +338,9 @@ function FlightResultsInner() {
                 throw new Error('Fare validation failed. The seat may be sold out or the search has expired.');
             }
 
-            // Confirmed prices (or fallback to search prices)
             const outPrice = outQR.Fare?.PublishedFare || selectedOutbound.Fare.PublishedFare;
             const retPrice = retQR.Fare?.PublishedFare || selectedReturn.Fare.PublishedFare;
 
-            // Enrich segment legs: merge FareQuote segment data with search-result data
-            // so Baggage/CabinBaggage is always present even if FareQuote omits it
             const enrichSeg = (quoteSeg, searchSeg) => {
                 if (!quoteSeg) return searchSeg || {};
                 return {
@@ -286,9 +355,6 @@ function FlightResultsInner() {
             const outEnrichedLegs = (outQR?.Segments?.[0] || outSearchLegs).map((leg, i) => enrichSeg(leg, outSearchLegs[i]));
             const retEnrichedLegs = (retQR?.Segments?.[0] || retSearchLegs).map((leg, i) => enrichSeg(leg, retSearchLegs[i]));
 
-
-
-            // Synthesize merged quoteData: Segments[0]=outbound, Segments[1]=return
             const quoteData = {
                 Response: {
                     Results: {
@@ -303,14 +369,12 @@ function FlightResultsInner() {
                 }
             };
 
-            // Merge FareRule API data
             const outFR = outRule?.Response?.FareRules || [];
             const retFR = retRule?.Response?.FareRules || [];
             const ruleData = (outFR.length || retFR.length)
                 ? { Response: { FareRules: [...outFR, ...retFR] } }
                 : null;
 
-            // Merge SSR data (Baggage/SeatPreferences/MealDynamic indexed by sector)
             const mergeSsrKey = (outS, retS, key) => [
                 ...(outS?.Response?.[key] || []),
                 ...(retS?.Response?.[key] || []),
@@ -325,21 +389,13 @@ function FlightResultsInner() {
                 }
             } : null;
 
-            // Use independent upsell structures
             const upsellData = {
                 outbound: outUpsell || null,
                 return: retUpsell || null
             };
 
-            // ── Debug summary ──────────────────────────────────────────────────
-
-
-            // Always open the modal — user clicked "View Fare" explicitly
-            // Even 1 fare family shows baggage, rules, price before booking
             setFetchedFareData({ quoteData, ruleData, ssrData, upsellData });
             setShowFareModal(true);
-
-
         } catch (err) {
             console.error('❌ Fare detail fetch error:', err);
             alert('This flight is no longer available or the search has expired. Please refresh the search.');
@@ -363,7 +419,6 @@ function FlightResultsInner() {
                     .fr-sticky-box { width: 100%; }
                 }
             `}</style>
-            {/* ── Modify Search Bar (Top) ── */}
             <ModifyFlightSearchBar initialState={location.state} />
 
             <div style={{ padding: '0' }}>
@@ -381,7 +436,6 @@ function FlightResultsInner() {
 
             <div className="container" style={{ paddingTop: '0' }}>
 
-                {/* ── Calendar Fare Strip ── */}
                 {!isLoading && calendarFares.length > 0 && (
                     <div className="cal-container" style={{ display: 'flex', alignItems: 'stretch', background: '#fff', borderRadius: '4px', border: '1px solid #e0e0e0', marginBottom: '16px', height: '64px', overflow: 'hidden' }}>
                         <style>{`
@@ -458,8 +512,13 @@ function FlightResultsInner() {
                     </div>
                 )}
 
-                {/* ── Sort Bar ── */}
-                {!isLoading && flights.length > 0 && (
+                {!isLoading && errorMessage && (
+                    <div style={{ textAlign: 'center', padding: '40px', background: '#fff', borderRadius: '8px', border: '1px solid #e4e7ed', color: '#d81b21', fontWeight: '600' }}>
+                        {errorMessage}
+                    </div>
+                )}
+
+                {!isLoading && !errorMessage && flights.length > 0 && (
                     <div style={{ display: 'flex', background: '#fff', borderRadius: '8px', border: '1px solid #e4e7ed', marginBottom: '12px', overflowX: 'auto', overflowY: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                         <div style={{ width: '120px', flexShrink: 0, display: 'flex', alignItems: 'center', padding: '10px 16px', borderRight: '1px solid #e4e7ed' }}>
                             <span style={{ fontSize: '13px', fontWeight: '700', color: '#555' }}>Sort By:</span>
@@ -476,14 +535,67 @@ function FlightResultsInner() {
                     </div>
                 )}
 
-                {/* ── Results ── */}
                 {isLoading ? (
                     <div style={{ textAlign: 'center', padding: '100px 0', background: '#fff', borderRadius: '12px', border: '1px solid #e4e7ed' }}>
                         <div className="spinner-border text-danger" role="status" style={{ width: '3rem', height: '3rem' }}><span className="visually-hidden">Loading...</span></div>
                         <h5 style={{ marginTop: '16px', fontWeight: '700', color: '#1a1a2e' }}>Searching live flight fares...</h5>
                         <p style={{ fontSize: '13px', color: '#687b8f' }}>Fetching real-time seat availability from TBO Airlines API</p>
                     </div>
-                ) : returnFlights.length > 0 ? (
+                ) : multiCitySegmentsData.length > 0 && !errorMessage ? (
+                    <div className="fr-multi-city-container">
+                        {/* Render Tabs for segments */}
+                        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', overflowX: 'auto', paddingBottom: '4px' }}>
+                            {multiCitySegmentsData.map((_, idx) => (
+                                <button
+                                    key={idx}
+                                    onClick={() => setActiveMultiCityTab(idx)}
+                                    style={{
+                                        padding: '12px 20px', borderRadius: '8px', border: 'none', fontWeight: '700', fontSize: '14px', whiteSpace: 'nowrap',
+                                        background: activeMultiCityTab === idx ? '#d81b21' : '#fff',
+                                        color: activeMultiCityTab === idx ? '#fff' : '#1a1a2e',
+                                        border: activeMultiCityTab !== idx ? '1px solid #e4e7ed' : '1px solid transparent',
+                                        boxShadow: activeMultiCityTab === idx ? '0 4px 12px rgba(216,27,33,0.3)' : 'none',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    Segment {idx + 1}
+                                    {selectedMultiCityFlights[idx] && <span style={{ marginLeft: '8px', color: activeMultiCityTab === idx ? '#ffb3b3' : '#10b981' }}>✓</span>}
+                                </button>
+                            ))}
+                        </div>
+                        
+                        {/* Render flights for the active segment */}
+                        <div>
+                            {multiCitySegmentsData[activeMultiCityTab]?.map((segOption, i) => {
+                                const isSelected = selectedMultiCityFlights[activeMultiCityTab]?.id === segOption.id;
+                                // Create a dummy flight object to reuse FlightCard/RoundTripFlightCard components
+                                const dummyFlight = {
+                                    ResultIndex: segOption.id,
+                                    Segments: [segOption.legs],
+                                    Fare: { PublishedFare: segOption.minFare },
+                                    AirlineCode: segOption.legs[0]?.Airline?.AirlineCode,
+                                    TraceId: multiCityItineraries[0]?.TraceId
+                                };
+                                return (
+                                    <RoundTripFlightCard
+                                        key={segOption.id}
+                                        flight={dummyFlight}
+                                        isSelected={isSelected}
+                                        onSelect={() => {
+                                            setSelectedMultiCityFlights(prev => ({ ...prev, [activeMultiCityTab]: segOption }));
+                                            if (activeMultiCityTab < multiCitySegmentsData.length - 1) {
+                                                setActiveMultiCityTab(prev => prev + 1);
+                                            }
+                                        }}
+                                    />
+                                );
+                            })}
+                            {multiCitySegmentsData[activeMultiCityTab]?.length === 0 && (
+                                <div style={{ padding: '20px', background: '#fff', borderRadius: '8px', textAlign: 'center' }}>No flights found for this segment.</div>
+                            )}
+                        </div>
+                    </div>
+                ) : returnFlights.length > 0 && !errorMessage ? (
                     <div className="fr-grid">
                         <div>
                             <h4 style={{ fontSize: '15px', fontWeight: '800', color: '#1a1a2e', marginBottom: '12px', background: '#fff', padding: '10px 14px', borderRadius: '6px', border: '1px solid #e4e7ed' }}>Outbound: {sortedFlights[0]?.Segments[0][0].Origin.Airport.CityName} to {sortedFlights[0]?.Segments[0][sortedFlights[0].Segments[0].length-1].Destination.Airport.CityName}</h4>
@@ -512,6 +624,67 @@ function FlightResultsInner() {
                     </div>
                 )}
             </div>
+
+            {/* ── Multi-City Sticky Footer ── */}
+            {multiCitySegmentsData.length > 0 && Object.keys(selectedMultiCityFlights).length > 0 && (
+                <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#1a1a2e', color: '#fff', padding: '16px 0', zIndex: 999, boxShadow: '0 -4px 16px rgba(0,0,0,0.2)', borderTop: '2px solid #d81b21', fontFamily: "'Outfit','Inter',sans-serif" }}>
+                    <div className="container fr-sticky-container">
+                        <div className="fr-sticky-details" style={{ overflowX: 'auto', display: 'flex', gap: '10px' }}>
+                            {multiCitySegmentsData.map((_, idx) => {
+                                const sel = selectedMultiCityFlights[idx];
+                                if (!sel) return null;
+                                return (
+                                    <div key={idx} className="fr-sticky-box" style={{ minWidth: '240px' }}>
+                                        <div style={{ background: '#fff', borderRadius: '6px', padding: '3px', width: '38px', height: '38px', marginRight: '16px', flexShrink: 0 }}>
+                                            <img src={`https://pics.avs.io/60/60/${sel.legs[0].Airline.AirlineCode}.png`} alt="Airline" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ fontSize: '12px', color: '#a0aab2', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '700', marginBottom: '4px' }}>Segment {idx + 1}</div>
+                                            <div style={{ fontSize: '15px', fontWeight: '800', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                {sel.legs[0].Origin.Airport.CityCode}
+                                                <span style={{ fontSize: '12px', color: '#687b8f' }}>&rarr;</span>
+                                                {sel.legs[sel.legs.length-1].Destination.Airport.CityCode}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        
+                        <div style={{ flexShrink: 0, textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center' }}>
+                            {Object.keys(selectedMultiCityFlights).length === multiCitySegmentsData.length ? (
+                                validMultiCityItinerary ? (
+                                    <>
+                                        <div style={{ fontSize: '13px', color: '#a0aab2', fontWeight: '600' }}>Total Fare</div>
+                                        <div style={{ fontSize: '24px', fontWeight: '800', color: '#fff', lineHeight: '1', marginBottom: '10px' }}>
+                                            ₹{Math.round(validMultiCityItinerary.Fare.PublishedFare).toLocaleString('en-IN')}
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                const searchState = location.state || {};
+                                                navigate('/flight-checkout', { state: { ...searchState, fareQuoteData: validMultiCityItinerary } });
+                                            }}
+                                            style={{ background: '#d81b21', color: '#fff', padding: '12px 32px', borderRadius: '8px', fontWeight: '800', fontSize: '15px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 12px rgba(216,27,33,0.3)', transition: 'all 0.2s' }}
+                                            onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                                            onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                                        >
+                                            Book Now
+                                        </button>
+                                    </>
+                                ) : (
+                                    <div style={{ color: '#ffb3b3', fontSize: '14px', fontWeight: '600', maxWidth: '300px' }}>
+                                        This combination is unavailable.
+                                    </div>
+                                )
+                            ) : (
+                                <div style={{ color: '#a0aab2', fontSize: '14px', fontWeight: '600' }}>
+                                    Select {multiCitySegmentsData.length - Object.keys(selectedMultiCityFlights).length} more segment{multiCitySegmentsData.length - Object.keys(selectedMultiCityFlights).length > 1 ? 's' : ''}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* ── Yatra-Style Round Trip Sticky Footer ── */}
             {returnFlights.length > 0 && selectedOutbound && selectedReturn && (
@@ -567,19 +740,18 @@ function FlightResultsInner() {
                         </div>
 
                         {/* Total Price & Book */}
-                        <div style={{ minWidth: '180px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center' }}>
-                            <div style={{ fontSize: '12px', color: '#a0aab2', fontWeight: '600' }}>Total Fare</div>
-                            <div style={{ fontSize: '26px', fontWeight: '800', color: '#fff', lineHeight: 1.1, marginBottom: '10px' }}>
+                        <div style={{ flexShrink: 0, textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center' }}>
+                            <div style={{ fontSize: '13px', color: '#a0aab2', fontWeight: '600' }}>Total Fare</div>
+                            <div style={{ fontSize: '24px', fontWeight: '800', color: '#fff', lineHeight: '1', marginBottom: '10px' }}>
                                 ₹{Math.round(selectedOutbound.Fare.PublishedFare + selectedReturn.Fare.PublishedFare).toLocaleString('en-IN')}
                             </div>
-                            <button 
+                            <button
                                 onClick={handleViewFareClick}
                                 disabled={isFareLoading}
-                                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: isFareLoading ? '#a0aab2' : '#d81b21', color: '#fff', border: 'none', padding: '12px 0', borderRadius: '6px', fontSize: '16px', fontWeight: '800', cursor: isFareLoading ? 'not-allowed' : 'pointer', transition: 'background 0.2s' }}
-                                onMouseEnter={e => !isFareLoading && (e.currentTarget.style.background = '#e8151b')}
-                                onMouseLeave={e => !isFareLoading && (e.currentTarget.style.background = '#d81b21')}
+                                style={{ background: isFareLoading ? '#a0aab2' : '#d81b21', color: '#fff', padding: '12px 32px', borderRadius: '8px', fontWeight: '800', fontSize: '15px', border: 'none', cursor: isFareLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 12px rgba(216,27,33,0.3)', transition: 'all 0.2s' }}
+                                onMouseEnter={e => !isFareLoading && (e.currentTarget.style.transform = 'translateY(-2px)')}
+                                onMouseLeave={e => !isFareLoading && (e.currentTarget.style.transform = 'none')}
                             >
-                                {isFareLoading && <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} />}
                                 {isFareLoading ? 'Loading...' : 'View Fare'}
                             </button>
                         </div>

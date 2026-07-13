@@ -252,8 +252,24 @@ function FlightCheckout() {
 
     const segments = fareQuoteData?.Segments || [];
     const firstLeg = segments[0]?.[0];
-    const lastLeg = segments[0]?.[segments[0]?.length - 1]; // Main display uses first sector bounds
+    const lastSegment = segments[segments.length - 1] || [];
+    const lastLeg = lastSegment[lastSegment.length - 1]; // Main display uses full journey bounds
     const fare = fareQuoteData?.Fare || {};
+
+    const originCountryCode = firstLeg?.Origin?.Airport?.CountryCode;
+    const destinationCountryCode = lastLeg?.Destination?.Airport?.CountryCode;
+    
+    // Check if the API explicitly requires passport for booking or ticketing
+    const apiRequiresPassport = 
+        fareQuoteData?.IsPassportRequiredAtBook === true || 
+        fareQuoteData?.IsPassportRequiredAtTicket === true;
+        
+    // Check if it's an international flight based on country codes
+    const isInternationalByCountryCode = 
+        !!(originCountryCode && destinationCountryCode && originCountryCode !== destinationCountryCode);
+
+    // If either condition is true, we require the passport details
+    const isPassportRequired = apiRequiresPassport || isInternationalByCountryCode;
 
     // Normalize SSR arrays (TBO sometimes returns 1D array for One-Way, 2D array for Round-Trip)
     const normalizeSsrArray = (data) => {
@@ -385,8 +401,8 @@ function FlightCheckout() {
                 if (!pax.FirstName || !pax.LastName) {
                     throw new Error('Please fill in names for all passengers.');
                 }
-                if (!fareQuoteData?.IsDomestic && (!pax.PassportNo || !pax.PassportExpiry)) {
-                    throw new Error('Passport details are required for international flights.');
+                if (isPassportRequired && (!pax.PassportNo || !pax.PassportExpiry)) {
+                    throw new Error('Passport details are required for this flight.');
                 }
             }
 
@@ -595,8 +611,8 @@ function FlightCheckout() {
                     if (SpecialServices.length > 0) mappedPax.SpecialServices = SpecialServices;
                 }
 
-                // Add passport only if international
-                if (!fareQuoteData?.IsDomestic) {
+                // Add passport only if required
+                if (isPassportRequired) {
                     mappedPax.PassportNo = pax.PassportNo || 'KJHHJKHKJH';
                     mappedPax.PassportExpiry = pax.PassportExpiry ? `${pax.PassportExpiry}T00:00:00` : '2030-12-06T00:00:00';
                     mappedPax.PassportIssueDate = '2020-01-01T00:00:00'; // Added fallback issue date
@@ -1250,7 +1266,7 @@ function FlightCheckout() {
                                                 <input
                                                     type="text"
                                                     className="form-control"
-                                                    placeholder="As per passport"
+                                                    placeholder={isPassportRequired ? "As per passport" : "As per Govt. ID"}
                                                     value={pax.FirstName || ''}
                                                     onChange={(e) => handlePassengerChange(idx, 'FirstName', e.target.value)}
                                                     style={{ padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
@@ -1261,15 +1277,15 @@ function FlightCheckout() {
                                                 <input
                                                     type="text"
                                                     className="form-control"
-                                                    placeholder="As per passport"
+                                                    placeholder={isPassportRequired ? "As per passport" : "As per Govt. ID"}
                                                     value={pax.LastName || ''}
                                                     onChange={(e) => handlePassengerChange(idx, 'LastName', e.target.value)}
                                                     style={{ padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
                                                 />
                                             </div>
 
-                                            {/* International Flights - Passport Details */}
-                                            {!fareQuoteData?.IsDomestic && (
+                                            {/* Passport Details (Dynamically shown based on API) */}
+                                            {isPassportRequired && (
                                                 <>
                                                     <div className="col-md-6 mb-3">
                                                         <label style={{ fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>Passport Number</label>

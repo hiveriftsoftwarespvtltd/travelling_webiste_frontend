@@ -1,14 +1,14 @@
 import React, { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { 
-    X, 
-    Home, 
-    Info, 
-    MapPin, 
-    Plane, 
-    Building2, 
-    Tag, 
-    BookOpen, 
+import {
+    X,
+    Home,
+    Info,
+    MapPin,
+    Plane,
+    Building2,
+    Tag,
+    BookOpen,
     Phone,
     LogIn,
     Ticket
@@ -16,6 +16,24 @@ import {
 
 function MobileMenu({ isOpen, onClose, onLoginClick }) {
     const location = useLocation();
+    const [settings, setSettings] = React.useState({
+        phone: '+91-82878 69655',
+        facebookUrl: 'https://www.facebook.com/share/1asni32Bye/',
+        instagramUrl: 'https://www.instagram.com/jiyolife_travel/',
+        youtubeUrl: 'https://youtube.com',
+        linkedinUrl: 'https://linkedin.com'
+    });
+
+    useEffect(() => {
+        fetch(`${process.env.REACT_APP_API_BASE_URL}/settings`)
+            .then(res => res.json())
+            .then(data => {
+                if (data) {
+                    setSettings(data);
+                }
+            })
+            .catch(err => console.error('Failed to fetch settings for MobileMenu:', err));
+    }, []);
 
     // Prevent body scroll when menu is open
     useEffect(() => {
@@ -250,14 +268,14 @@ function MobileMenu({ isOpen, onClose, onLoginClick }) {
             `}</style>
 
             {/* Backdrop */}
-            <div 
+            <div
                 className={`custom-mobile-backdrop ${isOpen ? 'is-open' : ''}`}
                 onClick={onClose}
             />
 
             {/* Sidebar */}
             <div className={`custom-mobile-sidebar ${isOpen ? 'is-open' : ''}`}>
-                
+
                 {/* Header */}
                 <div className="cm-header">
                     <img src="/assets/img/logo-main-jiyo.png" alt="Jiyo Life" className="cm-logo" />
@@ -270,8 +288,8 @@ function MobileMenu({ isOpen, onClose, onLoginClick }) {
                 <ul className="cm-nav-list">
                     {navLinks.map((link, idx) => (
                         <li key={idx} className="cm-nav-item">
-                            <Link 
-                                to={link.path} 
+                            <Link
+                                to={link.path}
                                 className={`cm-nav-link ${location.pathname === link.path ? 'active' : ''}`}
                                 onClick={onClose}
                             >
@@ -281,9 +299,9 @@ function MobileMenu({ isOpen, onClose, onLoginClick }) {
                         </li>
                     ))}
                     <li className="cm-nav-item">
-                        <button 
-                            className="cm-nav-link" 
-                            onClick={onLoginClick} 
+                        <button
+                            className="cm-nav-link"
+                            onClick={onLoginClick}
                             style={{ background: 'transparent', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}
                         >
                             <LogIn size={20} />
@@ -295,22 +313,22 @@ function MobileMenu({ isOpen, onClose, onLoginClick }) {
                 {/* Bottom Widget */}
                 <div className="cm-bottom-widget">
                     <div className="cm-contact-title">Need Help?</div>
-                    
+
                     <div className="cm-contact-info">
-                        <a href="tel:+918287869655" className="cm-contact-item">
+                        <a href={`tel:${settings.phone ? settings.phone.replace(/[^+\d]/g, '') : '+918287869655'}`} className="cm-contact-item">
                             <div className="cm-contact-icon">
                                 <Phone size={14} />
                             </div>
-                            +91-82878 69655
+                            {settings.phone || '+91-82878 69655'}
                         </a>
                     </div>
 
                     <div className="cm-contact-title" style={{ marginTop: '24px' }}>Follow Us</div>
                     <div className="cm-socials">
-                        <a href="#" className="cm-social-btn"><i className="fab fa-facebook-f"></i></a>
-                        <a href="#" className="cm-social-btn"><i className="fab fa-twitter"></i></a>
-                        <a href="#" className="cm-social-btn"><i className="fab fa-instagram"></i></a>
-                        <a href="#" className="cm-social-btn"><i className="fab fa-youtube"></i></a>
+                        {settings.facebookUrl && <a href={settings.facebookUrl} target="_blank" rel="noreferrer" className="cm-social-btn"><i className="fab fa-facebook-f"></i></a>}
+                        {settings.linkedinUrl && <a href={settings.linkedinUrl} target="_blank" rel="noreferrer" className="cm-social-btn"><i className="fab fa-linkedin-in"></i></a>}
+                        {settings.instagramUrl && <a href={settings.instagramUrl} target="_blank" rel="noreferrer" className="cm-social-btn"><i className="fab fa-instagram"></i></a>}
+                        {settings.youtubeUrl && <a href={settings.youtubeUrl} target="_blank" rel="noreferrer" className="cm-social-btn"><i className="fab fa-youtube"></i></a>}
                     </div>
                 </div>
 

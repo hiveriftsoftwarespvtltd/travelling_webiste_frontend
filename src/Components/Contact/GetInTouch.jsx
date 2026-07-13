@@ -1,7 +1,25 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 
 function GetInTouch() {
+    const [settings, setSettings] = useState({
+        phone: '+91-92892 28555',
+        email: 'info@jiyolifetravels.com',
+        address: 'Tower 21 Pocket 14, Sector 24, Rohini, Delhi, India',
+        whatsappNumber: '+91-92892 28555'
+    });
+
+    useEffect(() => {
+        fetch(`${process.env.REACT_APP_API_BASE_URL}/settings`)
+            .then(res => res.json())
+            .then(data => {
+                if (data) {
+                    setSettings(data);
+                }
+            })
+            .catch(err => console.error('Failed to fetch settings for GetInTouch:', err));
+    }, []);
+
     return (
         <div className="contact-cards-section">
             <style>{`
@@ -193,10 +211,8 @@ function GetInTouch() {
                                 <i className="fa-solid fa-location-dot"></i>
                             </div>
                             <h4>Visit Our Office</h4>
-                            <p>
-                                Tower 21 Pocket 14, Sector 24<br/>
-                                Rohini, Delhi<br/>
-                                India
+                            <p style={{ whiteSpace: 'pre-line' }}>
+                                {settings.address || `Tower 21 Pocket 14, Sector 24\nRohini, Delhi\nIndia`}
                             </p>
                             <div className="c-divider"></div>
                             <Link to="/contact" className="c-link">
@@ -213,11 +229,11 @@ function GetInTouch() {
                             </div>
                             <h4>Talk To Travel Expert</h4>
                             <p>
-                                +91-92892 28555<br/>
-                                +91-82878 69655
+                                {settings.phone || '+91-92892 28555'}<br/>
+                                {settings.whatsappNumber && settings.whatsappNumber !== settings.phone ? settings.whatsappNumber : '+91-82878 69655'}
                             </p>
                             <div className="c-divider"></div>
-                            <Link to="tel:+919289228555" className="c-link">
+                            <Link to={`tel:${settings.phone ? settings.phone.replace(/[^+\d]/g, '') : '+919289228555'}`} className="c-link">
                                 Call Us Now <i className="fa-solid fa-arrow-right"></i>
                             </Link>
                         </div>
@@ -231,11 +247,11 @@ function GetInTouch() {
                             </div>
                             <h4>Email Us Anytime</h4>
                             <p>
-                                info@jiyolifetravels.com<br/>
-                                support@jiyolifetravels.com
+                                {settings.email || 'info@jiyolifetravels.com'}<br/>
+                                {settings.email ? `support@${settings.email.split('@')[1]}` : 'support@jiyolifetravels.com'}
                             </p>
                             <div className="c-divider"></div>
-                            <Link to="mailto:info@jiyolifetravels.com" className="c-link">
+                            <Link to={`mailto:${settings.email || 'info@jiyolifetravels.com'}`} className="c-link">
                                 Send Email <i className="fa-solid fa-arrow-right"></i>
                             </Link>
                         </div>
