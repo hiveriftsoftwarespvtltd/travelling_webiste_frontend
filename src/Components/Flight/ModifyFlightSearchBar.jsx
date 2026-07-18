@@ -35,6 +35,19 @@ export default function ModifyFlightSearchBar({ initialState }) {
   // ── State ────────────────────────────────────────────────────────────────
   const [journeyType, setJourneyType]       = useState(initJourney);
   
+  const [multiCitySegments, setMultiCitySegments] = useState(
+    initJourney === 3 && initialState?.Segments?.length > 1
+      ? initialState.Segments.map(s => ({
+          from: { code: s.Origin, city: s.Origin },
+          to: { code: s.Destination, city: s.Destination },
+          date: new Date(s.PreferredDepartureTime)
+        }))
+      : [
+          { from: { code: initOrigin, city: initOrigin }, to: { code: initDest, city: initDest }, date: initDep },
+          { from: { code: initDest, city: initDest }, to: { code: '', city: '' }, date: addDays(initDep, 2) }
+        ]
+  );
+  
   // Initialize with basic object, it will be updated properly by autocomplete when selected
   const [fromAirport, setFromAirport]       = useState({ code: initOrigin, city: initOrigin });
   const [toAirport,   setToAirport]         = useState({ code: initDest, city: initDest });
@@ -67,29 +80,56 @@ export default function ModifyFlightSearchBar({ initialState }) {
 
   // ── Search handler ───────────────────────────────────────────────────────
   const handleSearch = () => {
-    const depStr = toStr(departDate);
-    const retStr = journeyType === 2 ? toStr(returnDate) : depStr;
+    let segments = [];
+    
+    // Validation
+    if (journeyType === 3) {
+      for (let i = 0; i < multiCitySegments.length; i++) {
+        if (!multiCitySegments[i].from?.code || !multiCitySegments[i].to?.code) {
+          alert(`Please select both Origin and Destination airports for Flight ${i + 1}.`);
+          return;
+        }
+      }
+    } else {
+      if (!fromAirport?.code || !toAirport?.code) {
+        alert('Please select both Origin and Destination airports.');
+        return;
+      }
+    }
+    
+    if (journeyType === 3) {
+      segments = multiCitySegments.map(s => ({
+        Origin:                  s.from.code,
+        Destination:             s.to.code,
+        FlightCabinClass:        flightClass,
+        PreferredDepartureTime:  toStr(s.date),
+        PreferredArrivalTime:    toStr(s.date),
+      }));
+    } else {
+      const depStr = toStr(departDate);
+      const retStr = journeyType === 2 ? toStr(returnDate) : depStr;
 
-    const outSegment = {
-      Origin:                  fromAirport.code,
-      Destination:             toAirport.code,
-      FlightCabinClass:        flightClass,
-      PreferredDepartureTime:  depStr,
-      PreferredArrivalTime:    depStr,
-    };
+      const outSegment = {
+        Origin:                  fromAirport.code,
+        Destination:             toAirport.code,
+        FlightCabinClass:        flightClass,
+        PreferredDepartureTime:  depStr,
+        PreferredArrivalTime:    depStr,
+      };
 
-    const segments = journeyType === 2
-      ? [
-          outSegment,
-          {
-            Origin:                  toAirport.code,
-            Destination:             fromAirport.code,
-            FlightCabinClass:        flightClass,
-            PreferredDepartureTime:  retStr,
-            PreferredArrivalTime:    retStr,
-          },
-        ]
-      : [outSegment];
+      segments = journeyType === 2
+        ? [
+            outSegment,
+            {
+              Origin:                  toAirport.code,
+              Destination:             fromAirport.code,
+              FlightCabinClass:        flightClass,
+              PreferredDepartureTime:  retStr,
+              PreferredArrivalTime:    retStr,
+            },
+          ]
+        : [outSegment];
+    }
 
     const newState = {
       ...initialState,
@@ -99,10 +139,10 @@ export default function ModifyFlightSearchBar({ initialState }) {
       InfantCount:             flightInfants,
       FlightCabinClass:        flightClass,
       CabinClass:              flightClass,
-      Origin:                  fromAirport.code,
-      Destination:             toAirport.code,
-      PreferredDepartureTime:  depStr,
-      PreferredArrivalTime:    depStr,
+      Origin:                  journeyType === 3 ? multiCitySegments[0].from.code : fromAirport.code,
+      Destination:             journeyType === 3 ? multiCitySegments[0].to.code : toAirport.code,
+      PreferredDepartureTime:  journeyType === 3 ? toStr(multiCitySegments[0].date) : toStr(departDate),
+      PreferredArrivalTime:    journeyType === 3 ? toStr(multiCitySegments[0].date) : toStr(departDate),
       Segments:                segments,
     };
 
@@ -175,7 +215,7 @@ export default function ModifyFlightSearchBar({ initialState }) {
 
       {/* ── Row 1: Trip type selector ── */}
       <div className="container" style={{ maxWidth: '1200px', margin: '0 auto', padding: '10px 20px 8px 20px', display: 'flex', alignItems: 'center', gap: '24px' }}>
-        {[{ val: 1, label: 'One Way' }, { val: 2, label: 'Round Trip' }].map(t => (
+        {[{ val: 1, label: 'One Way' }, { val: 2, label: 'Round Trip' }, { val: 3, label: 'Multi City' }].map(t => (
           <label key={t.val} className="ms-trip-radio" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{
               width: '16px', height: '16px', borderRadius: '50%', border: '2px solid rgba(255,255,255,0.8)',
@@ -190,7 +230,154 @@ export default function ModifyFlightSearchBar({ initialState }) {
       </div>
 
       {/* ── Row 2: Main search fields ── */}
-      <div className="ms-row">
+      {journeyType === 3 ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0', maxWidth: '1200px', margin: '0 auto', padding: '0 20px' }}>
+          {multiCitySegments.map((seg, idx) => (
+            <div key={idx} style={{ display: 'flex', alignItems: 'flex-end', gap: '16px', flexWrap: 'wrap', paddingBottom: '16px' }}>
+              <div style={{ paddingBottom: '10px', flexShrink: 0, width: '30px', display: 'flex', justifyContent: 'center' }}>
+                <span style={{ fontSize: '15px', fontWeight: '700', color: 'rgba(255,255,255,0.5)' }}>{idx + 1}</span>
+              </div>
+              <AirportAutocomplete
+                label="From"
+                value={seg.from}
+                onChange={(airport) => {
+                  const newSegs = [...multiCitySegments];
+                  newSegs[idx].from = airport;
+                  setMultiCitySegments(newSegs);
+                }}
+                onClick={() => setActiveDropdown(null)}
+              />
+              <div style={{ paddingBottom: '12px', flexShrink: 0, cursor: 'pointer' }} onClick={() => {
+                const newSegs = [...multiCitySegments];
+                const tmp = newSegs[idx].from;
+                newSegs[idx].from = newSegs[idx].to;
+                newSegs[idx].to = tmp;
+                setMultiCitySegments(newSegs);
+              }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M7 10L3 14L7 18"/><path d="M21 14H3"/><path d="M17 4L21 8L17 12"/><path d="M3 8H21"/>
+                </svg>
+              </div>
+              <AirportAutocomplete
+                label="To"
+                value={seg.to}
+                onChange={(airport) => {
+                  const newSegs = [...multiCitySegments];
+                  newSegs[idx].to = airport;
+                  setMultiCitySegments(newSegs);
+                }}
+                onClick={() => setActiveDropdown(null)}
+              />
+              <div className="ms-col" style={{ flexShrink: 0, minWidth: '110px', maxWidth: '140px' }}>
+                <div className="ms-label">Departure</div>
+                <DatePicker
+                  selected={seg.date}
+                  onChange={(date) => {
+                    const newSegs = [...multiCitySegments];
+                    newSegs[idx].date = date;
+                    setMultiCitySegments(newSegs);
+                  }}
+                  minDate={idx === 0 ? new Date() : multiCitySegments[idx-1].date}
+                  customInput={
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                      <div className="ms-val">{format(seg.date, 'dd MMM')}</div>
+                      <CalIcon />
+                    </div>
+                  }
+                />
+              </div>
+              
+              {/* Delete segment button */}
+              {idx >= 2 && (
+                <div style={{ paddingBottom: '10px', flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center' }} onClick={() => {
+                  setMultiCitySegments(s => s.filter((_, i) => i !== idx));
+                }}>
+                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <X size={16} color="#fff" />
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', paddingTop: '0px', paddingBottom: '14px' }}>
+            <div style={{ flex: 1, display: 'flex', gap: '20px', alignItems: 'center', paddingLeft: '46px' }}>
+              {multiCitySegments.length < 5 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const last = multiCitySegments[multiCitySegments.length - 1];
+                    setMultiCitySegments([...multiCitySegments, { from: last.to, to: { code: '', city: '' }, date: addDays(last.date, 2) }]);
+                  }}
+                  style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.4)', color: '#fff', padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}
+                >
+                  + Add City
+                </button>
+              )}
+            </div>
+            
+            {/* TRAVELLERS & CLASS */}
+            <div className="ms-col"
+              onClick={() => setActiveDropdown(activeDropdown === 'travellers' ? null : 'travellers')}
+              style={{ flexShrink: 0, minWidth: '140px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}
+            >
+              <div>
+                <div className="ms-label">Traveller(s), Class</div>
+                <div className="ms-val">{totalTravellers} Traveller, {cabinClassStr}</div>
+              </div>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '2px', flexShrink: 0 }}>
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+              {activeDropdown === 'travellers' && (
+                <div className="ms-dropdown" onClick={e => e.stopPropagation()} style={{ right: 0, left: 'auto', width: '280px', padding: '15px' }}>
+                  {/* Adults */}
+                  {[
+                    { label: 'Adults',   sub: '12+ years',    val: flightAdults,   min: 1, set: setFlightAdults },
+                    { label: 'Children', sub: '2-12 years',   val: flightChildren, min: 0, set: setFlightChildren },
+                    { label: 'Infants',  sub: 'Under 2 years',val: flightInfants,  min: 0, set: setFlightInfants },
+                  ].map(({ label, sub, val, min, set }) => (
+                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', fontFamily: "'Inter', sans-serif" }}>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: '14px', color: '#222' }}>{label}</div>
+                        <div style={{ fontSize: '11px', color: '#666' }}>{sub}</div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <button style={{ width: '28px', height: '28px', borderRadius: '50%', border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} disabled={val <= min} onClick={() => set(v => v - 1)}>&#8722;</button>
+                        <span style={{ fontWeight: 700, fontSize: '15px', color: '#222', minWidth: '16px', textAlign: 'center' }}>{val}</span>
+                        <button style={{ width: '28px', height: '28px', borderRadius: '50%', border: '1px solid #d81b21', background: '#ffebeb', color: '#d81b21', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => set(v => v + 1)}>+</button>
+                      </div>
+                    </div>
+                  ))}
+                  <div style={{ borderTop: '1px solid #eee', paddingTop: '10px', marginBottom: '10px' }}>
+                    <div style={{ fontWeight: 600, fontSize: '12px', marginBottom: '6px', color: '#333' }}>Cabin Class</div>
+                    <select value={flightClass} onChange={e => setFlightClass(parseInt(e.target.value))} style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #ddd', outline: 'none', fontSize: '13px' }}>
+                      <option value={1}>All Classes</option>
+                      <option value={2}>Economy</option>
+                      <option value={3}>Premium Economy</option>
+                      <option value={4}>Business</option>
+                      <option value={6}>First Class</option>
+                    </select>
+                  </div>
+                  <button type="button" style={{ width: '100%', padding: '8px', background: '#d81b21', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 700, cursor: 'pointer', fontSize: '13px' }} onClick={() => setActiveDropdown(null)}>Done</button>
+                </div>
+              )}
+            </div>
+
+            {/* SEARCH AGAIN */}
+            <div style={{ paddingBottom: '4px', flexShrink: 0 }}>
+              <button
+                onClick={handleSearch}
+                style={{ background: '#d81b21', color: '#fff', border: 'none', borderRadius: '4px', padding: '10px 22px', fontSize: '14px', fontWeight: '800', fontFamily: "'Inter', sans-serif", cursor: 'pointer', transition: 'background 0.2s', boxShadow: '0 4px 12px rgba(216,27,33,0.35)', whiteSpace: 'nowrap' }}
+                onMouseEnter={e => e.currentTarget.style.background = '#b81218'}
+                onMouseLeave={e => e.currentTarget.style.background = '#d81b21'}
+              >
+                Search Again
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+<div className="ms-row">
 
         {/* Plane icon */}
         <div style={{ paddingBottom: '10px', flexShrink: 0 }}>
@@ -339,7 +526,7 @@ export default function ModifyFlightSearchBar({ initialState }) {
           </button>
         </div>
       </div>
-
+      )}
     </div>
   );
 }

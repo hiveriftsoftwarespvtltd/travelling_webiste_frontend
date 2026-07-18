@@ -264,13 +264,35 @@ export default function PremiumFareDetailsModal({ isOpen, onClose, outbound, ret
                                     </h3>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                         <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
-                                            <div style={{ fontSize: '13px', fontWeight: '700', color: '#475569', marginBottom: '4px' }}>Cancellation Fee</div>
-                                            <div style={{ fontSize: '14px', color: '#1e293b', fontWeight: '600' }}>{fareInfo.out.cancel || (fareInfo.isRefundable ? 'Subject to airline policy' : 'Non-Refundable')}</div>
+                                            <div style={{ fontSize: '13px', fontWeight: '700', color: '#475569', marginBottom: '8px' }}>Cancellation Fee</div>
+                                            {(fareInfo.out.cancel || (fareInfo.isRefundable ? 'Subject to airline policy' : 'Non-Refundable')).split('\n').map((line, i) => {
+                                                const parts = line.split(':');
+                                                if (parts.length === 2) {
+                                                    return (
+                                                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px dashed #e2e8f0', fontSize: '13px' }}>
+                                                            <span style={{ color: '#475569' }}>{parts[0]}</span>
+                                                            <span style={{ fontWeight: '600', color: '#1e293b' }}>{parts[1]}</span>
+                                                        </div>
+                                                    );
+                                                }
+                                                return <div key={i} style={{ fontSize: '14px', color: '#1e293b', fontWeight: '600' }}>{line}</div>;
+                                            })}
                                         </div>
                                         <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
-                                            <div style={{ fontSize: '13px', fontWeight: '700', color: '#475569', marginBottom: '4px' }}>Date Change Fee</div>
-                                            <div style={{ fontSize: '14px', color: '#1e293b', fontWeight: '600' }}>{fareInfo.out.dateChange || 'Subject to airline policy'}</div>
-                                            <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>*Fare difference may apply</div>
+                                            <div style={{ fontSize: '13px', fontWeight: '700', color: '#475569', marginBottom: '8px' }}>Date Change Fee</div>
+                                            {(fareInfo.out.dateChange || 'Subject to airline policy').split('\n').map((line, i) => {
+                                                const parts = line.split(':');
+                                                if (parts.length === 2) {
+                                                    return (
+                                                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px dashed #e2e8f0', fontSize: '13px' }}>
+                                                            <span style={{ color: '#475569' }}>{parts[0]}</span>
+                                                            <span style={{ fontWeight: '600', color: '#1e293b' }}>{parts[1]}</span>
+                                                        </div>
+                                                    );
+                                                }
+                                                return <div key={i} style={{ fontSize: '14px', color: '#1e293b', fontWeight: '600' }}>{line}</div>;
+                                            })}
+                                            <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '8px' }}>*Fare difference may apply</div>
                                         </div>
                                     </div>
                                 </div>

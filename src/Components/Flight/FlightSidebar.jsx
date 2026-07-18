@@ -147,6 +147,7 @@ function FlightSidebar({
     const toggle = (key, val) => setPd(p => ({ ...p, [key]: p[key].includes(val) ? p[key].filter(x => x !== val) : [...p[key], val] }));
 
     const sliderPct = () => {
+        if (!priceRange.max || priceRange.max === priceRange.min) return 100;
         const max = priceRange.max || 1;
         const min = priceRange.min || 0;
         return (((pd.priceMax ?? max) - min) / (max - min)) * 100;
@@ -186,18 +187,30 @@ function FlightSidebar({
             <style>{`
                 .flt-bar-btn:hover { background: #f5f7fa !important; }
                 .flt-stop-btn:hover { border-color: #1a3c6e !important; }
-                .flt-chk-row { display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:6px; cursor:pointer; }
+                .flt-chk-row { display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:6px; cursor:pointer; user-select:none; -webkit-tap-highlight-color:transparent; }
                 .flt-chk-row:hover { background:#f5f7fa; }
+                .flt-custom-checkbox { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:4px; border:1.5px solid #c8d0db; background:#fff; transition:all 0.2s; flex-shrink:0; }
+                .flt-chk-row input[type="checkbox"] { display:none; }
+                .flt-chk-row input[type="checkbox"]:checked + .flt-custom-checkbox { background:#d81b21; border-color:#d81b21; }
+                .flt-chk-row input[type="checkbox"]:checked + .flt-custom-checkbox::after { content:''; display:block; width:4px; height:9px; border:solid #fff; border-width:0 2px 2px 0; transform:rotate(45deg); margin-bottom:2px; }
                 .flt-slot-btn:hover { border-color: #1a3c6e !important; }
                 .flt-panel-col { padding: 22px 20px; border-right: 1px solid #edf0f5; }
                 .flt-panel-col:last-child { border-right: none; }
                 .flt-scrolllist { overflow-y: auto; max-height: 240px; margin-top: 10px; }
                 .flt-scrolllist::-webkit-scrollbar { width: 4px; }
                 .flt-scrolllist::-webkit-scrollbar-thumb { background: #d0d7e3; border-radius: 4px; }
-                .range-sl { -webkit-appearance:none; appearance:none; width:100%; height:3px; border-radius:2px; outline:none; cursor:pointer;
-                    background: linear-gradient(to right, #d81b21 0%, #d81b21 var(--pct,100%), #dde3ed var(--pct,100%), #dde3ed 100%); }
-                .range-sl::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:#d81b21; border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,0.25); cursor:pointer; }
-                .range-sl::-moz-range-thumb { width:16px; height:16px; border-radius:50%; background:#d81b21; border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,0.25); cursor:pointer; }
+                
+                /* Bulletproof Custom Slider */
+                .invisible-range {
+                    -webkit-appearance: none; appearance: none; width: 100%; height: 100%; 
+                    background: transparent; outline: none; cursor: pointer; margin: 0; 
+                    position: absolute; top: 0; left: 0; opacity: 0; z-index: 10;
+                }
+                .invisible-range::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 0px; height: 22px; }
+                .invisible-range::-moz-range-thumb { width: 0px; height: 22px; border: none; }
+                .invisible-range::-webkit-slider-runnable-track { width: 100%; height: 22px; background: transparent; border: none; }
+                .invisible-range::-moz-range-track { width: 100%; height: 22px; background: transparent; border: none; }
+                
                 .flt-search-box { display:flex; align-items:center; gap:7px; border:1px solid #dde3ed; border-radius:6px; padding:8px 10px; background:#fafbfc; }
                 .flt-search-box input { border:none; outline:none; background:transparent; font-size:13px; width:100%; font-family:"Outfit","Inter",sans-serif; color:#1a1a2e; }
                 .flt-search-box input::placeholder { color:#9aabb8; }
@@ -354,11 +367,20 @@ function FlightSidebar({
                                 Upto: <strong style={{ color: '#1a1a2e' }}>₹{(pd.priceMax || priceRange.max).toLocaleString('en-IN')}</strong>
                             </div>
                             <div style={{ background: '#f5f7fa', borderRadius: '8px', padding: '16px 14px' }}>
-                                <input type="range" className="range-sl"
-                                    min={priceRange.min} max={priceRange.max}
-                                    value={pd.priceMax ?? priceRange.max}
-                                    style={{ '--pct': `${sliderPct()}%` }}
-                                    onChange={e => setPd(p => ({ ...p, priceMax: parseInt(e.target.value) }))} />
+                                <div style={{ position: 'relative', height: '22px', display: 'flex', alignItems: 'center' }}>
+                                    {/* Track Background */}
+                                    <div style={{ position: 'absolute', width: '100%', height: '4px', background: '#dde3ed', borderRadius: '2px', pointerEvents: 'none' }} />
+                                    {/* Red Fill */}
+                                    <div style={{ position: 'absolute', width: `${sliderPct()}%`, height: '4px', background: '#d81b21', borderRadius: '2px', pointerEvents: 'none' }} />
+                                    {/* Red Thumb */}
+                                    <div style={{ position: 'absolute', left: `calc(${sliderPct()}% - 11px)`, width: '22px', height: '22px', borderRadius: '50%', background: '#d81b21', border: '3px solid #fff', boxShadow: '0 1px 6px rgba(0,0,0,0.25)', pointerEvents: 'none' }} />
+                                    
+                                    {/* Invisible Native Input for logic and dragging */}
+                                    <input type="range" className="invisible-range"
+                                        min={priceRange.min} max={priceRange.max}
+                                        value={pd.priceMax ?? priceRange.max}
+                                        onChange={e => setPd(p => ({ ...p, priceMax: parseInt(e.target.value) }))} />
+                                </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px' }}>
                                     <span style={{ fontSize: '11px', fontWeight: '700', color: '#4a5568' }}>₹{priceRange.min.toLocaleString('en-IN')}</span>
                                     <span style={{ fontSize: '11px', fontWeight: '700', color: '#4a5568' }}>₹{priceRange.max.toLocaleString('en-IN')}</span>
@@ -400,8 +422,8 @@ function FlightSidebar({
                                     return (
                                         <label key={al.code} className="flt-chk-row">
                                             <input type="checkbox" checked={chk}
-                                                onChange={() => toggle('airlines', al.code)}
-                                                style={{ width: '15px', height: '15px', accentColor: '#d81b21', cursor: 'pointer', flexShrink: 0 }} />
+                                                onChange={() => toggle('airlines', al.code)} />
+                                            <div className="flt-custom-checkbox"></div>
                                             <div style={{ width: '26px', height: '26px', background: '#f5f8ff', borderRadius: '4px', border: '1px solid #edf0f5', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
                                                 <AirlineLogoSmall code={al.code} name={al.name} />
                                             </div>
@@ -427,8 +449,8 @@ function FlightSidebar({
                                     return (
                                         <label key={craft} className="flt-chk-row">
                                             <input type="checkbox" checked={chk}
-                                                onChange={() => toggle('aircraft', craft)}
-                                                style={{ width: '15px', height: '15px', accentColor: '#d81b21', cursor: 'pointer', flexShrink: 0 }} />
+                                                onChange={() => toggle('aircraft', craft)} />
+                                            <div className="flt-custom-checkbox"></div>
                                             <span style={{ fontSize: '13px', fontWeight: '500', color: '#1a1a2e' }}>{craft}</span>
                                         </label>
                                     );

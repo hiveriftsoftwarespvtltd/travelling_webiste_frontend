@@ -662,7 +662,7 @@ function FlightResultsInner() {
                                         <button
                                             onClick={() => {
                                                 const searchState = location.state || {};
-                                                navigate('/flight-checkout', { state: { ...searchState, fareQuoteData: validMultiCityItinerary } });
+                                                navigate('/flight-checkout', { state: { ...searchState, ...validMultiCityItinerary, fareQuoteData: validMultiCityItinerary } });
                                             }}
                                             style={{ background: '#d81b21', color: '#fff', padding: '12px 32px', borderRadius: '8px', fontWeight: '800', fontSize: '15px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 12px rgba(216,27,33,0.3)', transition: 'all 0.2s' }}
                                             onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}

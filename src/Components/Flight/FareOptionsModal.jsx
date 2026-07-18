@@ -182,7 +182,7 @@ const buildFareFamilies = ({ upsellFamilies, quoteResults, ruleData, ssrData, se
 
         return {
             id: idx + 1,
-            name: upsell.FareFamilyName || upsell.AirlineCode || `Fare ${idx + 1}`,
+            name: upsell.FareFamilyName || upsell.ResultFareType || upsell.FareClassification?.Type || (idx === 0 ? 'Basic' : idx === 1 ? 'Standard' : idx === 2 ? 'Flexi' : 'Premium'),
             price, baseFare, tax, fareBreakdown, resultIndex: resIdx,
             prefetchedQuote: familyQuoteData, prefetchedSsr: ssrData, isRefundable: upsell.IsRefundable,
             cancelTextOut: formatRulesText(upsell.MiniFareRules, isRet ? 1 : 0, 'cancel'),
@@ -360,6 +360,28 @@ const FareOptionsModal = ({ isOpen, onClose, outbound, returnFlight, navigate, f
             label: 'Cancellation',
             sub: 'Charges from departure',
             alwaysShow: true,
+            renderCell: (fare) => {
+                const txt = activeSegTab === 0
+                    ? (fare.cancelTextOut || fare.out.cancel)
+                    : (fare.cancelTextRet || fare.ret?.cancel);
+                if (!txt) return null;
+                return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {txt.split('\n').map((line, i) => {
+                            const parts = line.split(':');
+                            if (parts.length === 2) {
+                                return (
+                                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #e5e7eb', paddingBottom: '2px', fontSize: '12px' }}>
+                                        <span style={{ color: '#475569' }}>{parts[0]}</span>
+                                        <span style={{ fontWeight: '600', color: '#1e293b' }}>{parts[1]}</span>
+                                    </div>
+                                );
+                            }
+                            return <div key={i} style={{ fontSize: '12px', color: '#1e293b' }}>{line}</div>;
+                        })}
+                    </div>
+                );
+            },
             getText: (fare) => {
                 const txt = activeSegTab === 0
                     ? (fare.cancelTextOut || fare.out.cancel)
@@ -372,6 +394,28 @@ const FareOptionsModal = ({ isOpen, onClose, outbound, returnFlight, navigate, f
             label: 'Date Change',
             sub: 'Charges from departure',
             alwaysShow: true,
+            renderCell: (fare) => {
+                const txt = activeSegTab === 0
+                    ? (fare.dateChangeTextOut || fare.out.dateChange)
+                    : (fare.dateChangeTextRet || fare.ret?.dateChange);
+                if (!txt) return null;
+                return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {txt.split('\n').map((line, i) => {
+                            const parts = line.split(':');
+                            if (parts.length === 2) {
+                                return (
+                                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #e5e7eb', paddingBottom: '2px', fontSize: '12px' }}>
+                                        <span style={{ color: '#475569' }}>{parts[0]}</span>
+                                        <span style={{ fontWeight: '600', color: '#1e293b' }}>{parts[1]}</span>
+                                    </div>
+                                );
+                            }
+                            return <div key={i} style={{ fontSize: '12px', color: '#1e293b' }}>{line}</div>;
+                        })}
+                    </div>
+                );
+            },
             getText: (fare) => {
                 const txt = activeSegTab === 0
                     ? (fare.dateChangeTextOut || fare.out.dateChange)

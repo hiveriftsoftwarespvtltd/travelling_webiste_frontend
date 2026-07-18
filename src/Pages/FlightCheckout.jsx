@@ -32,6 +32,8 @@ function FlightCheckout() {
     const [paymentStatus, setPaymentStatus] = useState('idle'); // 'idle' | 'paying' | 'verifying' | 'booking'
     const [showLoginPrompt, setShowLoginPrompt] = useState(false);
     const [isLoginFormOpen, setIsLoginFormOpen] = useState(false);
+    const [hasGST, setHasGST] = useState(false);
+    const [gstDetails, setGstDetails] = useState({ GSTNumber: '', GSTCompanyName: '', GSTCompanyEmail: '', GSTCompanyContactNumber: '', GSTCompanyAddress: 'India' });
 
     useEffect(() => {
         const openLogin = () => setIsLoginFormOpen(true);
@@ -157,6 +159,9 @@ function FlightCheckout() {
                         DateOfBirth: '',
                         PassportNo: '',
                         PassportExpiry: '',
+                        PAN: '',
+                        MealPreference: '',
+                        SeatPreference: '',
                         Fare: fb
                     });
                 }
@@ -270,6 +275,7 @@ function FlightCheckout() {
 
     // If either condition is true, we require the passport details
     const isPassportRequired = apiRequiresPassport || isInternationalByCountryCode;
+    const isPanRequired = fareQuoteData?.IsPanRequiredAtBook === true || fareQuoteData?.IsPanRequiredAtTicket === true;
 
     // Normalize SSR arrays (TBO sometimes returns 1D array for One-Way, 2D array for Round-Trip)
     const normalizeSsrArray = (data) => {
@@ -587,6 +593,21 @@ function FlightCheckout() {
                     MealDynamic: [],
                     SeatDynamic: []
                 };
+
+                // Add PAN & GST & Non-LCC SSRs to Payload
+                if (fareQuoteData?.IsPanRequiredAtBook || fareQuoteData?.IsPanRequiredAtTicket) {
+                    mappedPax.PAN = pax.PAN || '';
+                }
+                if (pax.MealPreference) mappedPax.MealPreference = pax.MealPreference;
+                if (pax.SeatPreference) mappedPax.SeatPreference = pax.SeatPreference;
+
+                if (hasGST && (pax.PaxType === 1)) {
+                    mappedPax.GSTNumber = gstDetails.GSTNumber;
+                    mappedPax.GSTCompanyName = gstDetails.GSTCompanyName;
+                    mappedPax.GSTCompanyEmail = gstDetails.GSTCompanyEmail;
+                    mappedPax.GSTCompanyContactNumber = gstDetails.GSTCompanyContactNumber;
+                    mappedPax.GSTCompanyAddress = gstDetails.GSTCompanyAddress;
+                }
 
                 // Assign SSRs explicitly mapped to this passenger
                 if (pax.PaxType === 1 || pax.PaxType === 2) {
@@ -1309,6 +1330,49 @@ function FlightCheckout() {
                                                         />
                                                     </div>
                                                 </>
+                                            )}
+
+                                            {/* PAN Details */}
+                                            {isPanRequired && (
+                                                <div className="col-md-6 mb-3">
+                                                    <label style={{ fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>PAN Number <span style={{ color: '#e8151b' }}>*</span></label>
+                                                    <input
+                                                        type="text"
+                                                        className="form-control"
+                                                        placeholder="ABCDE1234F"
+                                                        value={pax.PAN || ''}
+                                                        onChange={(e) => handlePassengerChange(idx, 'PAN', e.target.value.toUpperCase())}
+                                                        style={{ padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                                                        required
+                                                    />
+                                                </div>
+                                            )}
+
+                                            {/* Non-LCC SSRs (Static Meal & Seat Preferences) */}
+                                            {(ssrData?.Meal?.length > 0 || ssrData?.SeatPreference?.length > 0) && (
+                                                <div className="col-12 mt-3 mb-3 p-3" style={{ background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                                    <div style={{ fontWeight: '600', fontSize: '13px', color: '#1e293b', marginBottom: '12px' }}>Free Preferences (Optional)</div>
+                                                    <div className="row">
+                                                        {ssrData?.Meal?.length > 0 && (
+                                                            <div className="col-md-6">
+                                                                <label style={{ fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>Meal Preference</label>
+                                                                <select className="form-control" style={{ padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }} value={pax.MealPreference || ''} onChange={e => handlePassengerChange(idx, 'MealPreference', e.target.value)}>
+                                                                    <option value="">Select Meal</option>
+                                                                    {ssrData.Meal.map(m => <option key={m.Code} value={m.Code}>{m.Description}</option>)}
+                                                                </select>
+                                                            </div>
+                                                        )}
+                                                        {ssrData?.SeatPreference?.length > 0 && (
+                                                            <div className="col-md-6">
+                                                                <label style={{ fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>Seat Preference</label>
+                                                                <select className="form-control" style={{ padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }} value={pax.SeatPreference || ''} onChange={e => handlePassengerChange(idx, 'SeatPreference', e.target.value)}>
+                                                                    <option value="">Select Seat</option>
+                                                                    {ssrData.SeatPreference.map(s => <option key={s.Code} value={s.Code}>{s.Description}</option>)}
+                                                                </select>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             )}
                                         </div>
                                     </div>
