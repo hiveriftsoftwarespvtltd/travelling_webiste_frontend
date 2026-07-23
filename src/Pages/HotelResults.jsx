@@ -68,37 +68,35 @@ export default function HotelResults() {
   const [showAllAmenities, setShowAllAmenities] = useState(false);
   const [showAllPropertyTypes, setShowAllPropertyTypes] = useState(false);
 
-  // ─── Search Hotels directly using CityCode ──────────────────────────
+  // ─── Search Hotels using Affiliate API ──────────────────────────────────
   const fetchHotels = useCallback(async (state) => {
     setIsLoading(true);
     setError('');
     setDebugInfo(null);
     try {
       const searchPayload = {
-        CheckIn: state.checkIn,
-        CheckOut: state.checkOut,
-        CityCode: state.cityCode,
-        HotelCodes: state.hotelCode || undefined, // Sent to API, but TBO often ignores this
-        CountryCode: state.CountryCode || 'IN',
+        CheckIn: state.checkIn,   // YYYY-MM-DD
+        CheckOut: state.checkOut, // YYYY-MM-DD
         GuestNationality: state.GuestNationality || 'IN',
         PaxRooms: Array.from({ length: state.rooms || 1 }, () => ({
           Adults: Math.ceil((state.adults || 2) / (state.rooms || 1)),
           Children: 0,
-          ChildrenAges: null,
+          ChildrenAges: [],
         })),
         ResponseTime: 23.0,
         IsDetailedResponse: true,
         Filters: {
           Refundable: false,
-          NoOfRooms: 0,
-          MealType: 0,
-          OrderBy: 0,
-          StarRating: 0,
-          HotelName: null,
+          NoOfRooms: state.rooms || 1,
+          MealType: 'All',
+          StarRating: 'All',
         },
+        // If a specific hotel code is provided (e.g. from hotel detail page)
+        ...(state.hotelCode ? { HotelCodes: state.hotelCode } : {}),
+        // If a city code is provided for city-wide search
+        ...(state.cityCode && !state.hotelCode ? { CityId: String(state.cityCode) } : {}),
       };
 
-      // Step 1: Search availability directly using CityCode
       const searchRes = await fetch(`${HOTEL_API}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -106,40 +104,33 @@ export default function HotelResults() {
       });
 
       const searchData = await searchRes.json();
-      let results = searchData?.GetHotelResultResponse?.HotelResults || [];
-      const apiError = searchData?.GetHotelResultResponse?.Error;
-      
-      // RCA FIX: TBO Dynamic API completely ignores HotelCodeList. 
-      // If the user selected a specific hotel, we must filter the response locally!
-      if (state.hotelCode && results.length > 0) {
-        results = results.filter(h => String(h.HotelCode) === String(state.hotelCode));
-      }
+      // Affiliate API response: { Status:{Code:200, Description:"Successful"}, HotelResult:[{HotelCode, Currency, Rooms:[...]}] }
+      const affiliateStatus = searchData?.Status;
+      let results = searchData?.HotelResult || [];
 
-      setTraceId(searchData?.GetHotelResultResponse?.TraceId || '');
+      const apiError = (affiliateStatus && affiliateStatus.Code !== 200)
+        ? { ErrorMessage: affiliateStatus.Description || 'Search failed' }
+        : null;
+
+      setTraceId(state.traceId || '');
       setHotels(results);
 
-      // Populate Debug Info
       setDebugInfo({
         requestPayload: searchPayload,
-        responseStatus: searchData?.GetHotelResultResponse?.ResponseStatus,
+        responseStatus: affiliateStatus?.Code,
         error: apiError,
-        rawResultsCount: searchData?.GetHotelResultResponse?.HotelResults?.length || 0,
+        rawResultsCount: results.length,
         filteredResultsCount: results.length
       });
 
-      // Graceful Error Handling based on RCA
-      if (apiError && apiError.ErrorCode !== 0) {
-        if (apiError.ErrorMessage.includes("Invalid CityId") || apiError.ErrorMessage.includes("No data found")) {
-           setError("Destination currently not supported by supplier's dynamic inventory. Please try another destination.");
-        } else if (apiError.ErrorMessage.includes("CheckInDate must be greater")) {
-           setError("Check-in date must be in the future. Please modify your search dates.");
-        } else {
-           setError(`API Error: ${apiError.ErrorMessage}`);
-        }
+      if (apiError) {
+        setError(`API Error: ${apiError.ErrorMessage}`);
       } else if (results.length === 0) {
-        setError(state.hotelCode 
-          ? 'This specific hotel is not available for these dates.' 
-          : 'No hotels available for these dates. Please try different dates.');
+        setError(
+          state.hotelCode
+            ? 'This specific hotel is not available for these dates.'
+            : 'No hotels available for these dates. Please try different dates or another city.'
+        );
       }
     } catch (err) {
       console.error(err);
@@ -151,15 +142,18 @@ export default function HotelResults() {
 
   useEffect(() => {
     if (!searchState) { navigate('/'); return; }
-    try { sessionStorage.setItem('hotelSearchState', JSON.stringify(searchState)); } catch (_) {}
+    try { sessionStorage.setItem('hotelSearchState', JSON.stringify(searchState)); } catch (_) { }
     fetchHotels(searchState);
   }, [searchState, navigate, fetchHotels]);
 
   // ─── Sort & Filter ─────────────────────────────────────────────────────────
   const filteredHotels = hotels
     .filter(h => {
-      const price = h.Rooms?.[0]?.TotalFare ?? h.MinPrice ?? 0;
-      
+      // Affiliate API format: h = { HotelCode, Currency, Rooms:[{TotalFare, ...}] }
+      const price = h.Rooms?.[0]?.TotalFare ?? 0;
+      const starRating = h.HotelRating || h.StarRating || 0;
+      const ratingNum = getGlobalRatingNumber(starRating);
+
       if (selectedPriceRanges.length > 0) {
         let priceMatched = false;
         for (const range of selectedPriceRanges) {
@@ -176,57 +170,44 @@ export default function HotelResults() {
         if (!(h.HotelName || '').toLowerCase().includes(hotelNameFilter.toLowerCase())) return false;
       }
 
-      const ratingNum = getGlobalRatingNumber(h.HotelRating || h.StarRating || 3);
-
       if (selectedStars.length > 0 && !selectedStars.includes(Math.round(ratingNum))) return false;
-      
-      // Guest Rating Filter
+
       if (selectedGuestRatings.length > 0) {
         const ratingMatch = (ratingNum >= 4.5 && selectedGuestRatings.includes('Excellent')) ||
-                            (ratingNum >= 3.5 && ratingNum < 4.5 && selectedGuestRatings.includes('Very Good')) ||
-                            (ratingNum >= 2.5 && ratingNum < 3.5 && selectedGuestRatings.includes('Good'));
+          (ratingNum >= 3.5 && ratingNum < 4.5 && selectedGuestRatings.includes('Very Good')) ||
+          (ratingNum >= 2.5 && ratingNum < 3.5 && selectedGuestRatings.includes('Good'));
         if (!ratingMatch) return false;
       }
 
-      // Property Type Filter
       if (selectedPropertyTypes.length > 0) {
         const hName = (h.HotelName || '').toLowerCase();
-        let pType = 'hotel'; // Default
+        let pType = 'hotel';
         if (hName.includes('resort')) pType = 'resort';
         if (hName.includes('villa')) pType = 'villa';
         if (hName.includes('apartment') || hName.includes('apt')) pType = 'apartment';
         if (hName.includes('hostel')) pType = 'hostel';
-        
         if (!selectedPropertyTypes.map(t => t.toLowerCase()).includes(pType)) return false;
       }
 
-      // Amenities Filter
       if (selectedAmenities.length > 0) {
-        const facsData = h.HotelFacilities || h.Facilities || h.HotelFacility || '';
-        let facsStr = '';
-        if (typeof facsData === 'string') facsStr = facsData;
-        else if (Array.isArray(facsData)) facsStr = facsData.join(' ');
-        
-        facsStr = facsStr.toLowerCase();
-        
-        // If API doesn't return amenities data on the search page, it's safer to show the hotel 
-        // than to filter it out. We only filter out if it definitively does NOT have the amenity.
-        const hasAllAmenities = selectedAmenities.every(a => facsStr.includes(a.toLowerCase()));
-        
-        // Only return false (hide the hotel) if we actually HAVE facilities data and it doesn't match.
-        // If we have NO data, we let it pass because we don't want to hide potentially valid hotels.
-        if (facsStr.length > 0 && !hasAllAmenities) return false; 
+        // Affiliate API: amenities come in Rooms[0].Amenities array after PreBook
+        // In search response, no amenities yet — so pass all hotels through
+        const amenitiesFromRooms = h.Rooms?.[0]?.Amenities || [];
+        if (amenitiesFromRooms.length > 0) {
+          const facsStr = amenitiesFromRooms.join(' ').toLowerCase();
+          const hasAllAmenities = selectedAmenities.every(a => facsStr.includes(a.toLowerCase()));
+          if (!hasAllAmenities) return false;
+        }
       }
 
       return true;
     })
     .sort((a, b) => {
-      const pa = a.Rooms?.[0]?.TotalFare ?? a.MinPrice ?? 0;
-      const pb = b.Rooms?.[0]?.TotalFare ?? b.MinPrice ?? 0;
+      const pa = a.Rooms?.[0]?.TotalFare ?? 0;
+      const pb = b.Rooms?.[0]?.TotalFare ?? 0;
       if (sortBy === 'price_asc') return pa - pb;
       if (sortBy === 'price_desc') return pb - pa;
-      
-      if (sortBy === 'rating') return getGlobalRatingNumber(b.HotelRating || b.StarRating || 3) - getGlobalRatingNumber(a.HotelRating || a.StarRating || 3);
+      if (sortBy === 'rating') return getGlobalRatingNumber(b.HotelRating || b.StarRating || 0) - getGlobalRatingNumber(a.HotelRating || a.StarRating || 0);
       return 0;
     });
 
@@ -274,6 +255,7 @@ export default function HotelResults() {
         }
         
         .hr-content { max-width: 1200px; margin: 40px auto 0; padding: 0 20px 40px; display: grid; grid-template-columns: 280px 1fr; gap: 32px; }
+        .hr-content main { min-width: 0; overflow: hidden; }
         @media(max-width: 900px) { .hr-content { grid-template-columns: 1fr; margin-top: 20px; } .hr-sidebar { display: none; } .hr-sidebar.mobile-open { display: block; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9999; background: #fff; padding: 0; margin: 0; overflow-y: auto; } .hr-sidebar.mobile-open .hr-sidebar-card { border: none; box-shadow: none; border-radius: 0; margin: 0; } }
         
         /* Sidebar */
@@ -322,42 +304,42 @@ export default function HotelResults() {
         .hr-count { margin-left: auto; font-size: 14px; font-weight: 700; color: #000; padding-right: 20px;}
         @media(max-width: 600px) { .hr-count { display: none; } }
         
-        /* Hotel cards (MakeMyTrip Style) */
-        .hr-card { background: #fff; border-radius: 4px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.1); margin-bottom: 24px; display: flex; transition: box-shadow 0.2s; border: 1px solid #e2e8f0; cursor: pointer;}
-        .hr-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-        .hr-card-img { width: 260px; flex-shrink: 0; position: relative; overflow: hidden; padding: 16px; }
-        .hr-card-img img { width: 100%; height: 180px; object-fit: cover; border-radius: 4px; background: #f1f5f9; }
-        .hr-card-body { flex: 1; display: flex; }
-        .hr-card-middle { flex: 1; padding: 16px 20px 16px 0; display: flex; flex-direction: column; }
-        .hr-card-right { width: 240px; border-left: 1px solid #e2e8f0; padding: 16px 20px; display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-end; background: #fafafa;}
-        .hr-hotel-name { font-family: 'Inter', sans-serif; font-weight: 900; font-size: 22px; color: #000; margin-bottom: 4px; line-height: 1.2; }
+        /* Hotel cards (Professional Layout) */
+        .hr-card { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 20px; display: flex; transition: box-shadow 0.2s, transform 0.2s; border: 1px solid #e2e8f0; cursor: pointer; min-height: 210px; }
+        .hr-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.12); transform: translateY(-2px); }
+        .hr-card-img { width: 260px; flex-shrink: 0; position: relative; overflow: hidden; padding: 0; }
+        .hr-card-img img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 8px 0 0 8px; background: #f1f5f9; position: absolute; top: 0; left: 0; }
+        .hr-card-body { flex: 1; display: flex; min-width: 0; }
+        .hr-card-middle { flex: 1; padding: 16px 20px; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+        .hr-card-right { width: 220px; border-left: 1px solid #e2e8f0; padding: 16px 20px; display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-end; background: #fafafa;}
+        .hr-hotel-name { font-family: 'Inter', sans-serif; font-weight: 800; font-size: 20px; color: #1a1a2e; margin-bottom: 6px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; white-space: normal; }
         .hr-hotel-name:hover { color: #008cff; }
-        .hr-hotel-loc { display: flex; align-items: center; gap: 5px; font-size: 13px; color: #4a4a4a; margin-bottom: 12px; }
-        .hr-amenities { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
-        .hr-amenity { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #4a4a4a; }
-        .hr-amenity svg { color: #22c55e; }
-        .hr-meal-badge { display: inline-flex; align-items: center; gap: 5px; color: #eb6110; font-size: 12px; font-weight: 700; margin-bottom: 12px;}
+        .hr-hotel-loc { display: flex; align-items: flex-start; gap: 5px; font-size: 13px; color: #4a4a4a; margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .hr-amenities { display: flex; gap: 8px 16px; flex-wrap: wrap; margin-top: auto; padding-top: 12px; border-top: 1px solid #f1f5f9; width: 100%; overflow: hidden; height: 32px; }
+        .hr-amenity { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #475569; font-weight: 500; white-space: nowrap; }
+        .hr-amenity svg { color: #10b981; }
+        .hr-meal-badge { display: inline-flex; align-items: center; gap: 5px; color: #d97706; background: #fef3c7; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; margin-bottom: 8px;}
         
-        .hr-price-block { text-align: right; width: 100%; margin-bottom: 16px;}
-        .hr-price-strike { font-size: 14px; color: #9b9b9b; text-decoration: line-through; margin-bottom: 2px; }
-        .hr-price-big { font-family: 'Inter', sans-serif; font-weight: 900; font-size: 28px; color: #000; line-height: 1; margin-bottom: 4px; }
-        .hr-price-taxes { font-size: 12px; color: #4a4a4a; margin-bottom: 4px; }
-        .hr-book-btn { background: linear-gradient(93deg,#ef6614,#d51226); color: #fff; border: none; border-radius: 30px; padding: 10px 28px; font-size: 15px; font-weight: 700; cursor: pointer; transition: all 0.2s; width: 100%; text-transform: uppercase; }
-        .hr-book-btn:hover { box-shadow: 0 4px 10px rgba(213,18,38,0.3); }
-        .hr-price-per-night { font-size: 12px; color: #4a4a4a; margin-bottom: 2px;}
+        .hr-price-block { text-align: right; width: 100%; margin-bottom: 12px;}
+        .hr-price-strike { font-size: 14px; color: #94a3b8; text-decoration: line-through; margin-bottom: 2px; font-weight: 500; }
+        .hr-price-big { font-family: 'Inter', sans-serif; font-weight: 900; font-size: 26px; color: #0f172a; line-height: 1; margin-bottom: 4px; letter-spacing: -0.5px; }
+        .hr-price-taxes { font-size: 12px; color: #64748b; margin-bottom: 4px; }
+        .hr-book-btn { background: linear-gradient(93deg,#ef6614,#d51226); color: #fff; border: none; border-radius: 6px; padding: 12px 24px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; width: 100%; text-transform: uppercase; box-shadow: 0 4px 12px rgba(239, 102, 20, 0.2); }
+        .hr-book-btn:hover { box-shadow: 0 6px 16px rgba(213,18,38,0.3); transform: translateY(-1px); }
+        .hr-price-per-night { font-size: 11px; color: #94a3b8; margin-bottom: 0; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;}
         
         @media(max-width: 900px) and (min-width: 701px) {
-            .hr-card-img { width: 220px; padding: 12px; }
-            .hr-card-img img { height: 160px; }
-            .hr-card-middle { padding: 12px 16px 12px 0; }
-            .hr-card-right { width: 200px; padding: 12px 16px; }
+            .hr-card-img { width: 220px; padding: 0; }
+            .hr-card-img img { position: absolute; }
+            .hr-card-middle { padding: 12px 16px; }
+            .hr-card-right { width: 180px; padding: 12px 16px; }
             .hr-hotel-name { font-size: 18px; }
-            .hr-price-big { font-size: 24px; }
+            .hr-price-big { font-size: 22px; }
         }
         @media(max-width: 700px) { 
-            .hr-card { flex-direction: column; border-radius: 12px; } 
-            .hr-card-img { width: 100%; padding: 0; } 
-            .hr-card-img img { height: 200px; border-radius: 12px 12px 0 0; }
+            .hr-card { flex-direction: column; border-radius: 12px; min-height: auto; } 
+            .hr-card-img { width: 100%; height: 200px; padding: 0; position: relative; } 
+            .hr-card-img img { position: absolute; height: 100%; border-radius: 12px 12px 0 0; }
             .hr-card-body { flex-direction: column; } 
             .hr-card-middle { padding: 16px; } 
             .hr-hotel-name { font-size: 20px; }
@@ -414,12 +396,12 @@ export default function HotelResults() {
                 <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <SlidersHorizontal size={18} color="#e8151b" /> Filters
                 </span>
-                <X 
-                  size={24} 
-                  color="#1a1a2e" 
-                  onClick={() => setShowFilters(false)} 
-                  style={{ cursor: 'pointer', display: showFilters ? 'block' : 'none' }} 
-                  className="d-md-none" 
+                <X
+                  size={24}
+                  color="#1a1a2e"
+                  onClick={() => setShowFilters(false)}
+                  style={{ cursor: 'pointer', display: showFilters ? 'block' : 'none' }}
+                  className="d-md-none"
                 />
               </div>
               <div className="hr-sidebar-body">
@@ -552,47 +534,63 @@ export default function HotelResults() {
             {/* Hotel cards */}
             {!isLoading && !error && filteredHotels.map((hotel, idx) => {
               const room = hotel.Rooms?.[0];
-              const price = room?.TotalFare ?? hotel.MinPrice ?? 0;
-              const pricePerNight = nights > 0 ? Math.round(price / nights) : price;
-              const originalPrice = Math.round(pricePerNight * 1.35); // simulated strikethrough
-              const taxes = Math.round(pricePerNight * 0.18); // simulated taxes
-              const isRefundable = room?.IsRefundable ?? hotel.IsRefundable;
-              const mealType = MEAL_TYPES[room?.MealType ?? hotel.MealType] || 'Room Only';
-              const isValidTboImage = hotel.HotelPicture && hotel.HotelPicture.startsWith('http') && !hotel.HotelPicture.includes('HotelNA');
-              const imgUrl = isValidTboImage ? hotel.HotelPicture : 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=400&h=280';
+              // Affiliate API: TotalFare is the full stay fare per room; TotalTax is included in it
+              const totalFare = room?.TotalFare ?? 0;
+              const totalTax = room?.TotalTax ?? 0;
+              const basePrice = totalFare - totalTax;
+
+              const basePricePerNight = nights > 0 ? Math.round(basePrice / nights) : basePrice;
+              const taxPerNight = nights > 0 ? Math.round(totalTax / nights) : totalTax;
+              const originalPrice = Math.round(basePricePerNight * 1.35); // simulated strikethrough
+
+              const isRefundable = room?.IsRefundable ?? false;
+              const inclusion = room?.Inclusion || 'Room Only';
+              // Affiliate API uses HotelCode as identifier, HotelPicture may not be present
+              const imgUrl = hotel.HotelPicture && hotel.HotelPicture.startsWith('http') && !hotel.HotelPicture.includes('HotelNA')
+                ? hotel.HotelPicture
+                : 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=400&h=280';
+              // Room name: Affiliate API returns Name as array
+              const roomName = Array.isArray(room?.Name) ? room.Name[0] : (room?.Name || '');
+              const starRating = hotel.HotelRating || hotel.StarRating;
 
               return (
                 <div key={hotel.HotelCode || idx} className="hr-card" onClick={() => handleSelectHotel(hotel)}>
                   <div className="hr-card-img">
                     <img
                       src={imgUrl}
-                      alt={hotel.HotelName}
-                      onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = 'https://images.unsplash.com/photo-1542314831-c6a4d14d837e?auto=format&fit=crop&w=400&h=280'; }}
+                      alt={hotel.HotelName || 'Hotel'}
+                      onError={e => { e.currentTarget.src = 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=400&h=280'; }}
                     />
                   </div>
                   <div className="hr-card-body">
                     <div className="hr-card-middle">
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
-                        <StarRating rating={hotel.HotelRating || 3} />
-                      </div>
-                      <div className="hr-hotel-name">{hotel.HotelName || 'Hotel Name'}</div>
+                      {starRating ? (
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
+                          <StarRating rating={starRating} />
+                        </div>
+                      ) : null}
+
+                      {hotel.HotelName && <div className="hr-hotel-name">{hotel.HotelName}</div>}
+
                       <div className="hr-hotel-loc">
                         <MapPin size={14} color="#008cff" />
-                        <span style={{ color: '#008cff', fontWeight: '600' }}>{searchState?.cityName || 'City'}</span>
-                        {hotel.HotelAddress ? <span style={{ color: '#4a4a4a' }}> | {hotel.HotelAddress.slice(0,40)}...</span> : ''}
+                        <span style={{ color: '#008cff', fontWeight: '600' }}>{searchState?.cityName || hotel.HotelCode}</span>
+                        {hotel.HotelAddress ? <span style={{ color: '#4a4a4a' }}> | {hotel.HotelAddress.slice(0, 40)}...</span> : ''}
                       </div>
-                      
-                      {/* Amenities & Badges */}
+
                       <div style={{ marginTop: 'auto' }}>
                         {isRefundable && <span style={{ display: 'inline-block', color: '#22c55e', fontSize: '12px', fontWeight: '700', marginBottom: '8px' }}>✓ Free Cancellation</span>}
-                        {mealType !== 'Room Only' && <div className="hr-meal-badge">{mealType}</div>}
-                        {hotel.HotelFacilities && (
-                          <div className="hr-amenities">
-                            {hotel.HotelFacilities.slice(0, 4).map((fac, i) => (
-                              <span key={i} className="hr-amenity">
-                                {AMENITY_ICONS[fac] || <Building2 size={13} />} {fac}
-                              </span>
-                            ))}
+                        {inclusion !== 'Room Only' && <div className="hr-meal-badge">✨ {inclusion}</div>}
+
+                        {room?.RoomPromotion && room.RoomPromotion.length > 0 && (
+                          <div style={{ color: '#ef6614', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', marginTop: '4px' }}>
+                            🎁 {Array.isArray(room.RoomPromotion) ? room.RoomPromotion.join(', ') : room.RoomPromotion}
+                          </div>
+                        )}
+
+                        {roomName && (
+                          <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '500', marginTop: '4px' }}>
+                            🛏 {roomName}
                           </div>
                         )}
                       </div>
@@ -601,8 +599,8 @@ export default function HotelResults() {
                     <div className="hr-card-right">
                       <div className="hr-price-block">
                         <div className="hr-price-strike">₹ {originalPrice.toLocaleString()}</div>
-                        <div className="hr-price-big">₹ {pricePerNight.toLocaleString()}</div>
-                        <div className="hr-price-taxes">+ ₹ {taxes.toLocaleString()} taxes & fees</div>
+                        <div className="hr-price-big">₹ {basePricePerNight.toLocaleString()}</div>
+                        <div className="hr-price-taxes">+ ₹ {taxPerNight.toLocaleString()} taxes & fees</div>
                         <div className="hr-price-per-night">Per Night</div>
                       </div>
                       <button className="hr-book-btn">

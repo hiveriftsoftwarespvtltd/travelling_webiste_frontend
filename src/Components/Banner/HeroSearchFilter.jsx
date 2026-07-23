@@ -1496,7 +1496,7 @@ function HeroSearchFilter() {
                       selected={checkInDate}
                       onChange={(date) => { setCheckInDate(date); if (checkOutDate && date >= checkOutDate) setCheckOutDate(new Date(date.getTime() + 86400000)); }}
                       minDate={new Date(new Date().getTime() + 86400000)} // RCA Fix: TBO rejects 'today' as check-in
-                      customInput={<CustomDateInput label="Check-in Date" day={format(checkInDate, 'dd')} month={format(checkInDate, "MMM' yy")} weekday={format(checkInDate, 'EEEE')} />}
+                      customInput={<CustomDateInput label="Check-in Date" day={format(checkInDate, 'dd')} month={format(checkInDate, 'MMM yy')} weekday={format(checkInDate, 'EEEE')} />}
                     />
                   </div>
                   <div className="sf-date-picker-wrapper">
@@ -1504,7 +1504,7 @@ function HeroSearchFilter() {
                       selected={checkOutDate}
                       onChange={(date) => setCheckOutDate(date)}
                       minDate={new Date(checkInDate.getTime() + 86400000)}
-                      customInput={<CustomDateInput label="Check-out Date" day={format(checkOutDate, 'dd')} month={format(checkOutDate, "MMM' yy")} weekday={format(checkOutDate, 'EEEE')} />}
+                      customInput={<CustomDateInput label="Check-out Date" day={format(checkOutDate, 'dd')} month={format(checkOutDate, 'MMM yy')} weekday={format(checkOutDate, 'EEEE')} />}
                     />
                   </div>
 

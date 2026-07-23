@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import HeaderOne from '../Components/Header/HeaderOne';
 import FooterOne from '../Components/Footer/FooterOne';
-import { MapPin, Star, Building2, ChevronRight, Info, ShieldCheck, CalendarDays, Loader2, Coffee, CheckCircle2 } from 'lucide-react';
+import { MapPin, Star, Building2, ChevronRight, Info, ShieldCheck, CalendarDays, Loader2, Coffee, CheckCircle2, Ban, Check } from 'lucide-react';
 import HotelAmenitiesParser from '../Components/Hotel/HotelAmenitiesParser';
 
 const HOTEL_API = process.env.REACT_APP_HOTEL_API_BASE_URL || 'http://localhost:8009/api/hotel';
@@ -108,6 +108,7 @@ export default function HotelDetail() {
   const description = hotelStatic?.Description || 'Enjoy a wonderful stay at this premium property offering best-in-class amenities and exceptional hospitality.';
   
   const nights = state.nights || 1;
+  const minPrice = hotelDynamic.MinPrice || hotelDynamic.Rooms?.[0]?.TotalFare || 0;
 
   return (
     <>
@@ -212,7 +213,7 @@ export default function HotelDetail() {
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600' }}>Starting from</div>
               <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: '36px', fontWeight: '800', color: '#e8151b', lineHeight: '1' }}>
-                ₹{Math.round(hotelDynamic.MinPrice / nights).toLocaleString()}
+                ₹{Math.round(minPrice / nights).toLocaleString()}
               </div>
               <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>per night</div>
             </div>
@@ -274,6 +275,26 @@ export default function HotelDetail() {
                          style={{ width: '100%', padding: '14px', background: '#1a1a2e', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: '700', fontSize: '14px', marginTop: '20px', cursor: 'pointer' }}>
                    View Available Rooms
                  </button>
+
+                 {/* Dynamic Hotel Contact Details */}
+                 {hotelStatic && (hotelStatic.HotelContactNo || hotelStatic.Email || hotelStatic.FaxNumber || hotelStatic.Website) && (
+                   <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #e2e8f0' }}>
+                     <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: '16px', fontWeight: '700', color: '#1a1a2e', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                       <Info size={18} color="#e8151b" /> Contact & Info
+                     </h3>
+                     <div style={{ fontSize: '13px', color: '#475569', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                       {hotelStatic.HotelContactNo && <div><strong>Phone:</strong> {hotelStatic.HotelContactNo}</div>}
+                       {hotelStatic.Email && <div><strong>Email:</strong> {hotelStatic.Email}</div>}
+                       {hotelStatic.FaxNumber && <div><strong>Fax:</strong> {hotelStatic.FaxNumber}</div>}
+                       {hotelStatic.Website && (
+                         <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                           <strong>Website:</strong> <a href={hotelStatic.Website.startsWith('http') ? hotelStatic.Website : `http://${hotelStatic.Website}`} target="_blank" rel="noreferrer" style={{ color: '#0ea5e9', textDecoration: 'none' }}>{hotelStatic.Website.replace(/^https?:\/\//, '')}</a>
+                         </div>
+                       )}
+                       {hotelStatic.PinCode && <div><strong>Pin Code:</strong> {hotelStatic.PinCode}</div>}
+                     </div>
+                   </div>
+                 )}
                </div>
             </div>
           </div>
@@ -292,28 +313,61 @@ export default function HotelDetail() {
               </div>
             ) : (
               rooms.map((room, idx) => {
-                const meal = MEAL_TYPES[room.MealType] || 'Room Only';
                 const isRefundable = room.IsRefundable;
                 const pricePerNight = Math.round(room.TotalFare / nights);
+                const roomName = Array.isArray(room.Name) ? room.Name.join(', ') : (room.Name || room.RoomTypeName || 'Standard Room');
+                const inclusion = room.Inclusion || MEAL_TYPES[room.MealType] || 'Room Only';
 
                 return (
                   <div key={idx} className="hd-room-card">
                     <div className="hd-room-info">
-                      <h3>{room.RoomTypeName || 'Standard Room'}</h3>
+                      <h3>{roomName}</h3>
                       <div className="hd-room-tags">
-                        <span className="hd-tag"><Coffee size={14}/> {meal}</span>
+                        <span className="hd-tag"><Coffee size={14}/> {inclusion}</span>
                         {isRefundable ? (
                           <span className="hd-tag success"><ShieldCheck size={14}/> Refundable</span>
                         ) : (
                           <span className="hd-tag warning">Non-Refundable</span>
                         )}
                         <span className="hd-tag"><CheckCircle2 size={14}/> Instant Confirmation</span>
+                        {(room.SmokingPreference === 'NonSmoking' || room.SmokingPreference === 'NoPreference') && (
+                          <span className="hd-tag"><Ban size={14}/> Non-Smoking</span>
+                        )}
                       </div>
-                      {room.CancellationPolicies && room.CancellationPolicies.length > 0 && (
-                        <div style={{ fontSize: '13px', color: '#64748b' }}>
-                          <strong>Cancellation: </strong> 
-                          Free cancellation before {new Date(room.CancellationPolicies[0].FromDate).toLocaleDateString()}.
+
+                      {room.Amenities && room.Amenities.length > 0 && (
+                        <div style={{ marginTop: '12px', fontSize: '12px', color: '#475569', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                          {room.Amenities.slice(0, 6).map((am, i) => (
+                            <span key={i} style={{ background: '#f1f5f9', padding: '3px 8px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <Check size={12} color="#10b981" /> {am}
+                            </span>
+                          ))}
+                          {room.Amenities.length > 6 && (
+                            <span style={{ padding: '3px 8px', color: '#64748b', fontStyle: 'italic' }}>+{room.Amenities.length - 6} more</span>
+                          )}
                         </div>
+                      )}
+
+                      {room.RoomPromotion && room.RoomPromotion.length > 0 && (
+                        <div style={{ fontSize: '13px', color: '#ef6614', fontWeight: '600', marginTop: '12px', marginBottom: '8px' }}>
+                          🎁 {room.RoomPromotion.join(', ')}
+                        </div>
+                      )}
+                      
+                      {(room.CancelPolicies || room.CancellationPolicies) && (room.CancelPolicies || room.CancellationPolicies).length > 0 && (
+                        <details style={{ marginTop: '12px', fontSize: '13px', color: '#64748b' }}>
+                          <summary style={{ cursor: 'pointer', outline: 'none', color: '#0ea5e9', fontWeight: '500', userSelect: 'none' }}>
+                            View Cancellation Policy
+                          </summary>
+                          <div style={{ marginTop: '6px', padding: '8px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+                            {(room.CancelPolicies || room.CancellationPolicies).map((cp, i) => (
+                              <div key={i} style={{ marginBottom: '4px' }}>
+                                <strong>From {cp.FromDate?.split(' ')[0]}:</strong>{' '}
+                                {cp.ChargeType === 'Percentage' ? `${cp.CancellationCharge}%` : `₹${cp.CancellationCharge}`} cancellation charge
+                              </div>
+                            ))}
+                          </div>
+                        </details>
                       )}
                     </div>
                     <div className="hd-room-price">

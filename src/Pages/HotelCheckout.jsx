@@ -144,7 +144,7 @@ export default function HotelCheckout() {
         setPreBookData(preBook);
 
         // Check for price change
-        const newRate = preBook?.HotelResult?.Rooms?.[0]?.TotalFare;
+        const newRate = preBook?.HotelResult?.[0]?.Rooms?.[0]?.TotalFare;
         if (newRate && state.selectedRoom.TotalFare && Math.abs(newRate - state.selectedRoom.TotalFare) > 1) {
           setState(prev => ({
             ...prev,
@@ -214,7 +214,7 @@ export default function HotelCheckout() {
       }
 
       // Calculate total amount to pay
-      const currentPrice = preBookData?.HotelResult?.Rooms?.[0]?.TotalFare || state.selectedRoom?.TotalFare || state.hotel?.MinPrice || 0;
+      const currentPrice = preBookData?.HotelResult?.[0]?.Rooms?.[0]?.TotalFare || state.selectedRoom?.TotalFare || state.hotel?.Rooms?.[0]?.TotalFare || 0;
       const currentTaxes = Math.round(currentPrice * 0.12);
       const amountToPay = currentPrice + currentTaxes;
 
@@ -313,7 +313,7 @@ export default function HotelCheckout() {
 
       // Build HotelRoomsDetails for TBO
       const hotelRoomsDetails = guestRooms.map((room, ri) => {
-        const latestRoom = preBookData?.HotelResult?.Rooms?.[0] || state.selectedRoom;
+        const latestRoom = preBookData?.HotelResult?.[0]?.Rooms?.[0] || state.selectedRoom;
         return {
           RoomIndex: latestRoom?.RoomIndex || ri + 1,
           RoomTypeCode: latestRoom?.RoomTypeCode || state.selectedRoom?.RoomTypeCode || '',
@@ -338,7 +338,7 @@ export default function HotelCheckout() {
         };
       });
 
-      const bookingCode = preBookData?.HotelResult?.Rooms?.[0]?.BookingCode
+      const bookingCode = preBookData?.HotelResult?.[0]?.Rooms?.[0]?.BookingCode
         || state.selectedRoom?.BookingCode;
 
       const userDataStr = localStorage.getItem("user");
@@ -437,7 +437,7 @@ export default function HotelCheckout() {
   const grandTotal = price + taxes;
 
   // Cancellation policy text
-  const cancelPolicy = preBookData?.HotelResult?.Rooms?.[0]?.CancellationPolicies
+  const cancelPolicy = preBookData?.HotelResult?.[0]?.Rooms?.[0]?.CancellationPolicies
     || room.CancellationPolicies || [];
 
   return (
@@ -613,6 +613,39 @@ export default function HotelCheckout() {
                     )}
                   </div>
 
+                  {/* Hotel Policies & Important Information */}
+                  {preBookData && (
+                    <div className="hco-card">
+                      <div className="hco-section-title"><ShieldCheck size={20} color="#e8151b" /> Important Policies & Rules</div>
+                      {(() => {
+                        const rateConditions = preBookData?.HotelResult?.[0]?.RateConditions || preBookData?.RateConditions || [];
+                        if (!rateConditions || rateConditions.length === 0) {
+                          return (
+                            <div style={{ color: '#64748b', fontSize: '14px', fontStyle: 'italic' }}>
+                              No special conditions specified by the hotel. Standard rules apply.
+                            </div>
+                          );
+                        }
+                        
+                        // Decode HTML entities that TBO sends like &lt;ul&gt;
+                        const decodeHtml = (html) => {
+                          if (!html) return '';
+                          return html.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+                        };
+
+                        return (
+                          <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                            <ul style={{ margin: 0, paddingLeft: '20px', color: '#334155', fontSize: '13px', lineHeight: '1.6' }}>
+                              {rateConditions.map((policy, idx) => (
+                                <li key={idx} style={{ marginBottom: '10px' }} dangerouslySetInnerHTML={{ __html: decodeHtml(policy) }} />
+                              ))}
+                            </ul>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
                   {/* Contact Details */}
                   <div className="hco-card">
                     <div className="hco-section-title"><Phone size={20} color="#e8151b" /> Contact Details</div>
@@ -747,6 +780,22 @@ export default function HotelCheckout() {
                       <span className="hco-total-label">Total Amount</span>
                       <span className="hco-total-price">₹{grandTotal.toLocaleString()}</span>
                     </div>
+
+                    {room.DayRates && room.DayRates.length > 0 && room.DayRates[0].length > 0 && (
+                      <details style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', marginTop: '16px', border: '1px solid #e2e8f0', fontSize: '13px' }}>
+                        <summary style={{ cursor: 'pointer', fontWeight: '600', color: '#0ea5e9', display: 'flex', alignItems: 'center', gap: '6px', outline: 'none', userSelect: 'none' }}>
+                          <Info size={14} /> View Daily Price Breakdown
+                        </summary>
+                        <div style={{ marginTop: '12px', paddingLeft: '8px', paddingRight: '8px', display: 'flex', flexDirection: 'column', gap: '8px', color: '#475569' }}>
+                          {room.DayRates[0].map((day, idx) => (
+                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #cbd5e1', paddingBottom: '4px' }}>
+                              <span>Night {idx + 1}</span>
+                              <span style={{ fontWeight: '600' }}>₹{day.BasePrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    )}
 
                     <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '10px', padding: '12px', marginTop: '16px', marginBottom: '20px', fontSize: '13px', color: '#15803d' }}>
                       ✅ <strong>No hidden charges.</strong> The amount above is the total you'll pay.
