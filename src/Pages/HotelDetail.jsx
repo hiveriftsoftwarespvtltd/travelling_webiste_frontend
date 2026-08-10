@@ -333,7 +333,19 @@ export default function HotelDetail() {
                         {(room.SmokingPreference === 'NonSmoking' || room.SmokingPreference === 'NoPreference') && (
                           <span className="hd-tag"><Ban size={14}/> Non-Smoking</span>
                         )}
+                        {room.LastCancellationDeadline && (
+                          <span className="hd-tag" style={{ background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0' }}>
+                            <ShieldCheck size={14} color="#166534" /> Free Cancellation before {room.LastCancellationDeadline.split(' ')[0]}
+                          </span>
+                        )}
                       </div>
+
+                      {room.BeddingGroup && (
+                        <div style={{ marginTop: '8px', fontSize: '13px', color: '#64748b', display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+                          <Info size={14} style={{ minWidth: '14px', marginTop: '2px' }} />
+                          <span>{room.BeddingGroup}</span>
+                        </div>
+                      )}
 
                       {room.Amenities && room.Amenities.length > 0 && (
                         <div style={{ marginTop: '12px', fontSize: '12px', color: '#475569', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -344,10 +356,9 @@ export default function HotelDetail() {
                           ))}
                           {room.Amenities.length > 6 && (
                             <span style={{ padding: '3px 8px', color: '#64748b', fontStyle: 'italic' }}>+{room.Amenities.length - 6} more</span>
-                          )}
+                           )}
                         </div>
-                      )}
-
+                      )}   
                       {room.RoomPromotion && room.RoomPromotion.length > 0 && (
                         <div style={{ fontSize: '13px', color: '#ef6614', fontWeight: '600', marginTop: '12px', marginBottom: '8px' }}>
                           🎁 {room.RoomPromotion.join(', ')}
@@ -357,15 +368,20 @@ export default function HotelDetail() {
                       {(room.CancelPolicies || room.CancellationPolicies) && (room.CancelPolicies || room.CancellationPolicies).length > 0 && (
                         <details style={{ marginTop: '12px', fontSize: '13px', color: '#64748b' }}>
                           <summary style={{ cursor: 'pointer', outline: 'none', color: '#0ea5e9', fontWeight: '500', userSelect: 'none' }}>
-                            View Cancellation Policy
+                            View Cancellation Timeline
                           </summary>
-                          <div style={{ marginTop: '6px', padding: '8px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
-                            {(room.CancelPolicies || room.CancellationPolicies).map((cp, i) => (
-                              <div key={i} style={{ marginBottom: '4px' }}>
-                                <strong>From {cp.FromDate?.split(' ')[0]}:</strong>{' '}
-                                {cp.ChargeType === 'Percentage' ? `${cp.CancellationCharge}%` : `₹${cp.CancellationCharge}`} cancellation charge
-                              </div>
-                            ))}
+                          <div style={{ marginTop: '8px', padding: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', paddingLeft: '16px', borderLeft: '2px solid #cbd5e1' }}>
+                              {(room.CancelPolicies || room.CancellationPolicies).map((cp, i) => (
+                                <div key={i} style={{ position: 'relative' }}>
+                                  <div style={{ position: 'absolute', left: '-21px', top: '4px', width: '8px', height: '8px', borderRadius: '50%', background: cp.CancellationCharge === 0 ? '#10b981' : '#e8151b' }}></div>
+                                  <strong style={{ color: '#334155' }}>From {cp.FromDate?.split(' ')[0] || cp.FromDate}:</strong>{' '}
+                                  <span style={{ color: cp.CancellationCharge === 0 ? '#10b981' : '#e8151b', fontWeight: '500' }}>
+                                    {cp.ChargeType === 'Percentage' ? `${cp.CancellationCharge}%` : `₹${cp.CancellationCharge}`} penalty
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         </details>
                       )}

@@ -117,6 +117,94 @@ function FlightCheckout() {
                     else if (firstBaggage?.length > 0) setActiveSsrTab('baggage');
                     else if (ssrResp?.SeatDynamic?.[0]?.SegmentSeat?.[0]?.RowSeats?.length > 0) setActiveSsrTab('seats');
                     else if (firstSpecial?.length > 0) setActiveSsrTab('special');
+
+                    // ─── AUTO-SELECT 0-PRICE SSRs ─────────────────────────────────────────
+                    // TBO Rule: If isseatmandatory/ismealmandatory is true (SpiceMax, Super 6E),
+                    // or if IsLCC=true and JourneyType=2 (International LCC),
+                    // we must include 0-price SSRs in the ticket request.
+                    // fareResults: fareQuoteData state is already quoteData.Response.Results
+                    const fareResults = fareQuoteData;
+                    const isSeatMandatory = fareResults?.isseatmandatory === true;
+                    const isMealMandatory = fareResults?.ismealmandatory === true;
+                    const isIntlLCC = fareResults?.IsLCC === true && (fareResults?.JourneyType === 2 || fareResults?.IsInternational === true);
+                    const isI5Domestic = (fareResults?.Segments?.[0]?.[0]?.Airline?.AirlineCode === 'I5');
+
+                    if (isSeatMandatory || isMealMandatory || isIntlLCC || isI5Domestic) {
+                        // Build auto-selections for each sector and each passenger
+                        const autoSSR = {};
+                        const segments = fareResults?.Segments || [[]];
+                        segments.forEach((segGroup, sectorIdx) => {
+                            autoSSR[sectorIdx] = autoSSR[sectorIdx] || {};
+                            
+                            const fareBreakdown = fareResults?.FareBreakdown || [];
+                            let paxGlobalIdx = 0;
+                            fareBreakdown.forEach(fb => {
+                                for (let p = 0; p < fb.PassengerCount; p++) {
+                                    autoSSR[sectorIdx][paxGlobalIdx] = autoSSR[sectorIdx][paxGlobalIdx] || { _hasSet: {} };
+
+                                    // Auto-select 0-price Meal
+                                    if (isMealMandatory || isIntlLCC || isI5Domestic) {
+                                        const mealArr = Array.isArray(ssrResp?.MealDynamic?.[sectorIdx]) 
+                                            ? ssrResp.MealDynamic[sectorIdx] 
+                                            : (Array.isArray(ssrResp?.MealDynamic) ? ssrResp.MealDynamic : []);
+                                        const freeMeal = mealArr.find(m => m.Price === 0 || m.Price === '0');
+                                        if (freeMeal) {
+                                            autoSSR[sectorIdx][paxGlobalIdx].meal = freeMeal;
+                                            autoSSR[sectorIdx][paxGlobalIdx]._hasSet.meal = true;
+                                        }
+                                    }
+
+                                    // Auto-select 0-price Baggage (International LCC and I5)
+                                    if (isIntlLCC || isI5Domestic) {
+                                        const bagArr = Array.isArray(ssrResp?.Baggage?.[sectorIdx]) 
+                                            ? ssrResp.Baggage[sectorIdx] 
+                                            : (Array.isArray(ssrResp?.Baggage) ? ssrResp.Baggage : []);
+                                        const freeBag = bagArr.find(b => b.Price === 0 || b.Price === '0');
+                                        if (freeBag) {
+                                            autoSSR[sectorIdx][paxGlobalIdx].baggage = freeBag;
+                                            autoSSR[sectorIdx][paxGlobalIdx]._hasSet.baggage = true;
+                                        }
+                                    }
+
+                                    // Auto-select 0-price Seat (when isseatmandatory)
+                                    if (isSeatMandatory) {
+                                        const seatSegments = ssrResp?.SeatDynamic?.[sectorIdx]?.SegmentSeat;
+                                        if (seatSegments) {
+                                            seatSegments.forEach(seg => {
+                                                seg?.RowSeats?.forEach(row => {
+                                                    if (!autoSSR[sectorIdx][paxGlobalIdx].seat) {
+                                                        const freeSeat = row?.Seats?.find(s => s.Price === 0 || s.Price === '0');
+                                                        if (freeSeat) {
+                                                            autoSSR[sectorIdx][paxGlobalIdx].seat = freeSeat;
+                                                            autoSSR[sectorIdx][paxGlobalIdx]._hasSet.seat = true;
+                                                        }
+                                                    }
+                                                });
+                                            });
+                                        }
+                                    }
+
+                                    paxGlobalIdx++;
+                                }
+                            });
+                        });
+
+                        // Merge with any existing manual selections
+                        setSelectedSSR(prev => {
+                            const merged = { ...prev };
+                            Object.keys(autoSSR).forEach(sIdx => {
+                                merged[sIdx] = merged[sIdx] || {};
+                                Object.keys(autoSSR[sIdx]).forEach(pIdx => {
+                                    merged[sIdx][pIdx] = { ...autoSSR[sIdx][pIdx], ...(merged[sIdx][pIdx] || {}) };
+                                });
+                            });
+                            return merged;
+                        });
+
+                        console.log('[Auto-SSR] Free SSRs auto-selected for mandatory/LCC fare:', autoSSR);
+                    }
+                    // ─── END AUTO-SELECT ──────────────────────────────────────────────────
+
                 } else {
                     // Fallback: Set empty object so the 'No add-ons available' UI renders instead of disappearing entirely
                     setSsrData({});
@@ -402,14 +490,62 @@ function FlightCheckout() {
         setPaymentStatus('idle');
 
         try {
+            // fareQuoteData state = quoteData.Response.Results (set in useEffect line 96)
+            // So Segments[0][0].Airline.AirlineCode is directly accessible
+            const airlineCode = fareQuoteData?.Segments?.[0]?.[0]?.Airline?.AirlineCode;
+            const isPanRequired = fareQuoteData?.IsPanRequiredAtBook === true || fareQuoteData?.IsPanRequiredAtTicket === true;
+            // isPassportRequired: use component-level which includes country-code-based international detection
+            // (already defined above as: apiRequiresPassport || isInternationalByCountryCode)
+            // We shadow it here to ensure it's the most complete check
+            const isPassportRequiredFull = isPassportRequired; // inherits component-level value
+
             // Validate that all passengers have required fields
             for (const pax of passengers) {
                 if (!pax.FirstName || !pax.LastName) {
                     throw new Error('Please fill in names for all passengers.');
                 }
+                
+                // SpiceJet (SG) - First Name and Last Name cannot be same
+                if (airlineCode === 'SG') {
+                    if (pax.FirstName.toLowerCase().trim() === pax.LastName.toLowerCase().trim()) {
+                        throw new Error(`SpiceJet (SG) requires distinct First and Last names for passenger ${pax.FirstName}.`);
+                    }
+                }
+                
+                // TruJet (2T) and Zoom Air (ZO) - No space in Last Name
+                if (airlineCode === '2T' || airlineCode === 'ZO') {
+                    if (/\s/.test(pax.LastName)) {
+                        throw new Error(`TruJet / Zoom Air does not allow spaces in the Last Name of passenger ${pax.FirstName}.`);
+                    }
+                }
+
+                // SpiceJet special characters in name check (Navitaire 4X)
+                const nameSpecialCharRegex = /[.,\/]/;
+                if (nameSpecialCharRegex.test(pax.FirstName) || nameSpecialCharRegex.test(pax.LastName)) {
+                    throw new Error(`Passenger name for ${pax.FirstName} contains invalid special characters (. , /). Please remove them.`);
+                }
+
+                // Date of Birth validation for Child/Infant OR AirAsia Adult
+                if (pax.PaxType === 2 || pax.PaxType === 3 || ((airlineCode === 'I5' || airlineCode === 'AK') && pax.PaxType === 1)) {
+                    if (!pax.DateOfBirth) {
+                        throw new Error(`Date of Birth is mandatory for passenger ${pax.FirstName} based on airline rules.`);
+                    }
+                }
+
                 if (isPassportRequired && (!pax.PassportNo || !pax.PassportExpiry)) {
                     throw new Error('Passport details are required for this flight.');
                 }
+                
+                if (fareQuoteData?.IsPassportFullDetailRequiredAtBook && !pax.PassportIssueDate) {
+                    throw new Error('Passport Issue Date is mandatory for this international flight.');
+                }
+                if (isPanRequired && !pax.PAN) {
+                    throw new Error('PAN is required for this flight. Please provide it for all passengers or their guardian.');
+                }
+            }
+
+            if (fareQuoteData?.IsGSTMandatory && (!gstDetails.GSTNumber || !gstDetails.GSTCompanyName || !gstDetails.GSTCompanyEmail || !gstDetails.GSTCompanyContactNumber || !gstDetails.GSTCompanyAddress)) {
+                throw new Error('GST Details are mandatory for this booking. Please fill all GST fields.');
             }
 
             if (!contactEmail || !contactPhone) {
@@ -563,13 +699,11 @@ function FlightCheckout() {
                     FirstName: pax.FirstName,
                     LastName: pax.LastName,
                     PaxType: pax.PaxType,
-                    DateOfBirth: pax.DateOfBirth ? `${pax.DateOfBirth}T00:00:00` :
-                        pax.PaxType === 3 ? '2025-01-01T00:00:00' :
-                            pax.PaxType === 2 ? '2015-01-01T00:00:00' : '1990-01-01T00:00:00',
+                    DateOfBirth: pax.DateOfBirth ? `${pax.DateOfBirth}T00:00:00` : undefined,
                     Gender: pax.Gender,
                     PassportNo: pax.PassportNo,
                     PassportExpiry: pax.PassportExpiry ? `${pax.PassportExpiry}T00:00:00` : undefined,
-                    AddressLine1: pax.AddressLine1 || '123, Test',
+                    AddressLine1: pax.AddressLine1 || 'Not Provided',
                     AddressLine2: "",
                     Fare: {
                         Currency: pax.Fare.Currency || "INR",
@@ -580,9 +714,9 @@ function FlightCheckout() {
                         AdditionalTxnFeeOfrd: pax.Fare.AdditionalTxnFeeOfrd || 0.0,
                         OtherCharges: pax.Fare.OtherCharges || 0.0
                     },
-                    City: pax.City || 'Gurgaon',
-                    CountryCode: "IN",
-                    CountryName: "India",
+                    City: pax.City || 'Not Provided',
+                    CountryCode: airlineCode === 'I5' || airlineCode === 'AK' ? (pax.CountryCode || "IN") : "IN",
+                    CountryName: airlineCode === 'I5' || airlineCode === 'AK' ? (pax.CountryName || "India") : "India",
                     Nationality: "IN",
                     ContactNo: contactPhone,
                     Email: contactEmail,
@@ -634,12 +768,15 @@ function FlightCheckout() {
 
                 // Add passport only if required
                 if (isPassportRequired) {
-                    mappedPax.PassportNo = pax.PassportNo || 'KJHHJKHKJH';
-                    mappedPax.PassportExpiry = pax.PassportExpiry ? `${pax.PassportExpiry}T00:00:00` : '2030-12-06T00:00:00';
-                    mappedPax.PassportIssueDate = '2020-01-01T00:00:00'; // Added fallback issue date
-                    mappedPax.DocumentIssuingCountry = 'IN';
-                    mappedPax.PassportIssueCountryCode = 'IN';
-                    mappedPax.PassportIssueCountry = 'IN';
+                    mappedPax.PassportNo = pax.PassportNo;
+                    mappedPax.PassportExpiry = pax.PassportExpiry ? `${pax.PassportExpiry}T00:00:00` : undefined;
+                    
+                    if (fareQuoteData?.IsPassportFullDetailRequiredAtBook) {
+                        mappedPax.PassportIssueDate = pax.PassportIssueDate ? `${pax.PassportIssueDate}T00:00:00` : undefined;
+                        mappedPax.DocumentIssuingCountry = pax.DocumentIssuingCountry || 'IN';
+                        mappedPax.PassportIssueCountryCode = pax.DocumentIssuingCountry || 'IN';
+                        mappedPax.PassportIssueCountry = pax.DocumentIssuingCountry || 'IN';
+                    }
                 } else {
                     delete mappedPax.PassportNo;
                     delete mappedPax.PassportExpiry;
@@ -688,22 +825,78 @@ function FlightCheckout() {
                 const legPayload = { ...basePayload, ResultIndex: idx };
                 let finalTicketResponse = null;
 
-                if (isLCC) {
-                    // ── LCC Flow: Direct Ticketing ──
-                    const response = await fetch(`${flightApiBase}/ticket`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(legPayload)
-                    });
-                    const data = await response.json();
-
-                    if (data?.Response?.ResponseStatus === 1) {
-                        finalTicketResponse = data.Response;
-                    } else {
-                        throw new Error(`Failed to ticket LCC flight (Index: ${idx}): ${data?.message || data?.Response?.Error?.ErrorMessage || 'Unknown error'}`);
+                // ── Helper: GetBookingDetails polling (for timeout recovery) ──────────────
+                const pollBookingDetails = async (pnr, bookingId, maxAttempts = 10) => {
+                    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                        setPaymentStatus('booking');
+                        await new Promise(r => setTimeout(r, 12000)); // wait 12 seconds between polls
+                        try {
+                            const detailRes = await fetch(`${flightApiBase}/get-booking-details`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ PNR: pnr, BookingId: bookingId, TraceId: location.state.TraceId })
+                            });
+                            const detailData = await detailRes.json();
+                            const bookingDetail = detailData?.Response?.Response;
+                            // If we get actual booking details (not "under process"), return them
+                            if (bookingDetail && bookingDetail.BookingId && !detailData?.Response?.Error?.ErrorMessage?.includes('under process')) {
+                                return bookingDetail;
+                            }
+                        } catch (pollErr) {
+                            console.warn(`[Polling] Attempt ${attempt} failed:`, pollErr.message);
+                        }
                     }
+                    return null; // Could not confirm after max attempts
+                };
+
+                if (isLCC) {
+                    // ── LCC Flow: Direct Ticketing with IsPriceChanged retry ──
+                    let ticketAttempt = 0;
+                    let isPriceChangedAccepted = false;
+
+                    while (ticketAttempt < 3) {
+                        ticketAttempt++;
+                        const lccTicketPayload = { 
+                            ...legPayload, 
+                            ...(isPriceChangedAccepted ? { IsPriceChangedAccepted: true } : {})
+                        };
+
+                        let lccRes, lccData;
+                        try {
+                            lccRes = await fetch(`${flightApiBase}/ticket`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(lccTicketPayload)
+                            });
+                            lccData = await lccRes.json();
+                        } catch (timeoutErr) {
+                            // Timeout — poll GetBookingDetails
+                            console.warn('[LCC Ticket] Timeout. Polling GetBookingDetails...');
+                            const polledDetail = await pollBookingDetails(null, null);
+                            if (polledDetail) {
+                                finalTicketResponse = { Response: polledDetail };
+                                break;
+                            }
+                            throw new Error('Booking timed out. Please check your booking history or contact support.');
+                        }
+
+                        if (lccData?.Response?.ResponseStatus === 1) {
+                            finalTicketResponse = lccData.Response;
+                            break;
+                        }
+
+                        // Check IsPriceChanged
+                        if (lccData?.Response?.IsPriceChanged === true && !isPriceChangedAccepted) {
+                            console.warn('[LCC Ticket] IsPriceChanged=true. Retrying with IsPriceChangedAccepted=true...');
+                            isPriceChangedAccepted = true;
+                            continue; // retry
+                        }
+
+                        throw new Error(`Failed to ticket LCC flight (Index: ${idx}): ${lccData?.message || lccData?.Response?.Error?.ErrorMessage || 'Unknown error'}`);
+                    }
+
                 } else {
-                    // ── Non-LCC Flow: Book then Ticket ──
+                    // ── Non-LCC Flow: Book then Ticket with full IsPriceChanged handling ──
                     const bookResponse = await fetch(`${flightApiBase}/book`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -717,25 +910,55 @@ function FlightCheckout() {
 
                     const pnr = bookData.Response.Response?.PNR;
                     const bookingId = bookData.Response.Response?.BookingId;
+                    
+                    // TBO Rule: IsPriceChanged in Book response → must pass IsPriceChangedAccepted in Ticket
+                    const bookPriceChanged = bookData?.Response?.IsPriceChanged === true;
 
-                    const ticketPayload = {
-                        TraceId: location.state.TraceId,
-                        PNR: pnr,
-                        BookingId: bookingId,
-                        userId: loggedInUserId,
-                        email: loggedInEmail
-                    };
+                    let ticketAttempt = 0;
+                    let isPriceChangedAccepted = bookPriceChanged; // pre-set if book already flagged it
 
-                    const ticketRes = await fetch(`${flightApiBase}/ticket`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(ticketPayload)
-                    });
-                    const ticketData = await ticketRes.json();
+                    while (ticketAttempt < 3) {
+                        ticketAttempt++;
+                        const ticketPayload = {
+                            TraceId: location.state.TraceId,
+                            PNR: pnr,
+                            BookingId: bookingId,
+                            userId: loggedInUserId,
+                            email: loggedInEmail,
+                            ...(isPriceChangedAccepted ? { IsPriceChangedAccepted: true } : {})
+                        };
 
-                    if (ticketData?.Response?.ResponseStatus === 1) {
-                        finalTicketResponse = ticketData.Response;
-                    } else {
+                        let ticketRes, ticketData;
+                        try {
+                            ticketRes = await fetch(`${flightApiBase}/ticket`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(ticketPayload)
+                            });
+                            ticketData = await ticketRes.json();
+                        } catch (timeoutErr) {
+                            // TBO Docs: On timeout, poll GetBookingDetails every 12s to check status
+                            console.warn('[Non-LCC Ticket] Timeout. Polling GetBookingDetails for PNR:', pnr);
+                            const polledDetail = await pollBookingDetails(pnr, bookingId);
+                            if (polledDetail) {
+                                finalTicketResponse = { Response: polledDetail };
+                                break;
+                            }
+                            throw new Error('Booking timed out. Your payment was captured. Please check your booking history or contact support with your PNR: ' + pnr);
+                        }
+
+                        if (ticketData?.Response?.ResponseStatus === 1) {
+                            finalTicketResponse = ticketData.Response;
+                            break;
+                        }
+
+                        // TBO Rule: IsPriceChanged in Ticket response → retry with IsPriceChangedAccepted:true
+                        if (ticketData?.Response?.IsPriceChanged === true && !isPriceChangedAccepted) {
+                            console.warn('[Non-LCC Ticket] IsPriceChanged=true. Retrying with IsPriceChangedAccepted=true...');
+                            isPriceChangedAccepted = true;
+                            continue; // retry the ticket call
+                        }
+
                         throw new Error(`Failed to issue ticket for Non-LCC flight (PNR: ${pnr}): ${ticketData?.message || ticketData?.Response?.Error?.ErrorMessage || 'Unknown error'}`);
                     }
                 }
@@ -892,6 +1115,22 @@ function FlightCheckout() {
                                     <h4 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#1a1a2e', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                         <PlusCircle size={20} color="#e8151b" /> Enhance Your Trip (Add-ons)
                                     </h4>
+
+                                    {/* Special Fare Info Banner (SpiceMax, Super 6E, International LCC) */}
+                                    {(fareQuoteData?.isseatmandatory || fareQuoteData?.ismealmandatory) && (
+                                        <div style={{ padding: '12px 16px', background: 'linear-gradient(135deg, #ecfdf5, #d1fae5)', borderRadius: '10px', border: '1px solid #6ee7b7', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            <CheckCircle2 size={18} color="#059669" />
+                                            <div>
+                                                <strong style={{ color: '#065f46', fontSize: '14px' }}>Special Fare — Free Add-ons Auto-included</strong>
+                                                <div style={{ fontSize: '12px', color: '#047857', marginTop: '2px' }}>
+                                                    This is a {fareQuoteData?.FareName || 'special'} fare. 
+                                                    {fareQuoteData?.ismealmandatory && ' Free meal'}{fareQuoteData?.isseatmandatory && (fareQuoteData?.ismealmandatory ? ' & free seat' : ' Free seat')} {' '}
+                                                    has been automatically included in your booking as required by the airline.
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
 
                                     {/* Fallback when NO SSR is returned at all */}
                                     {currentAvailableMeals.length === 0 && currentAvailableBaggage.length === 0 && currentAvailableSeatsRows.length === 0 && currentSpecialServices.length === 0 ? (
@@ -1305,22 +1544,36 @@ function FlightCheckout() {
                                                 />
                                             </div>
 
+                                            {/* Date of Birth for Child/Infant OR AirAsia Adults */}
+                                            {(pax.PaxType === 2 || pax.PaxType === 3 || ((fareQuoteData?.Results?.Segments?.[0]?.[0]?.Airline?.AirlineCode === 'I5' || fareQuoteData?.Results?.Segments?.[0]?.[0]?.Airline?.AirlineCode === 'AK') && pax.PaxType === 1)) && (
+                                                <div className="col-md-6 mb-3">
+                                                    <label style={{ fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>Date of Birth <span style={{ color: '#e8151b' }}>*</span></label>
+                                                    <input
+                                                        type="date"
+                                                        className="form-control"
+                                                        value={pax.DateOfBirth || ''}
+                                                        onChange={(e) => handlePassengerChange(idx, 'DateOfBirth', e.target.value)}
+                                                        style={{ padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                                                    />
+                                                </div>
+                                            )}
+
                                             {/* Passport Details (Dynamically shown based on API) */}
                                             {isPassportRequired && (
                                                 <>
                                                     <div className="col-md-6 mb-3">
-                                                        <label style={{ fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>Passport Number</label>
+                                                        <label style={{ fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>Passport Number <span style={{ color: '#e8151b' }}>*</span></label>
                                                         <input
                                                             type="text"
                                                             className="form-control"
                                                             placeholder="Passport No"
                                                             value={pax.PassportNo || ''}
-                                                            onChange={(e) => handlePassengerChange(idx, 'PassportNo', e.target.value)}
-                                                            style={{ padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                                                            onChange={(e) => handlePassengerChange(idx, 'PassportNo', e.target.value.toUpperCase())}
+                                                            style={{ padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', textTransform: 'uppercase' }}
                                                         />
                                                     </div>
                                                     <div className="col-md-6 mb-3">
-                                                        <label style={{ fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>Passport Expiry (YYYY-MM-DD)</label>
+                                                        <label style={{ fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>Passport Expiry (YYYY-MM-DD) <span style={{ color: '#e8151b' }}>*</span></label>
                                                         <input
                                                             type="date"
                                                             className="form-control"
@@ -1329,13 +1582,41 @@ function FlightCheckout() {
                                                             style={{ padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
                                                         />
                                                     </div>
+                                                    {fareQuoteData?.IsPassportFullDetailRequiredAtBook && (
+                                                        <>
+                                                            <div className="col-md-6 mb-3">
+                                                                <label style={{ fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>Passport Issue Date <span style={{ color: '#e8151b' }}>*</span></label>
+                                                                <input
+                                                                    type="date"
+                                                                    className="form-control"
+                                                                    value={pax.PassportIssueDate || ''}
+                                                                    onChange={(e) => handlePassengerChange(idx, 'PassportIssueDate', e.target.value)}
+                                                                    style={{ padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                                                                />
+                                                            </div>
+                                                            <div className="col-md-6 mb-3">
+                                                                <label style={{ fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>Issuing Country Code <span style={{ color: '#e8151b' }}>*</span></label>
+                                                                <input
+                                                                    type="text"
+                                                                    className="form-control"
+                                                                    placeholder="IN"
+                                                                    value={pax.DocumentIssuingCountry || ''}
+                                                                    onChange={(e) => handlePassengerChange(idx, 'DocumentIssuingCountry', e.target.value.toUpperCase())}
+                                                                    style={{ padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', textTransform: 'uppercase' }}
+                                                                    maxLength="2"
+                                                                />
+                                                            </div>
+                                                        </>
+                                                    )}
                                                 </>
                                             )}
 
                                             {/* PAN Details */}
                                             {isPanRequired && (
                                                 <div className="col-md-6 mb-3">
-                                                    <label style={{ fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>PAN Number <span style={{ color: '#e8151b' }}>*</span></label>
+                                                    <label style={{ fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>
+                                                        {pax.PaxType === 1 ? 'PAN Number' : 'Guardian PAN Number'} <span style={{ color: '#e8151b' }}>*</span>
+                                                    </label>
                                                     <input
                                                         type="text"
                                                         className="form-control"
@@ -1345,6 +1626,11 @@ function FlightCheckout() {
                                                         style={{ padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
                                                         required
                                                     />
+                                                    {pax.PaxType !== 1 && (
+                                                        <small style={{ color: '#64748b', fontSize: '11px', marginTop: '4px', display: 'block' }}>
+                                                            Since this passenger is a minor, please provide the Parent/Guardian's PAN.
+                                                        </small>
+                                                    )}
                                                 </div>
                                             )}
 
@@ -1377,6 +1663,105 @@ function FlightCheckout() {
                                         </div>
                                     </div>
                                 ))}
+
+                                {/* GST Details (Dynamic) */}
+                                {(hasGST || fareQuoteData?.IsGSTMandatory) && (
+                                    <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #f0f0f0' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                                            <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: '#1a1a2e', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e8151b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20"></path><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                                                GST Details {fareQuoteData?.IsGSTMandatory ? '(Mandatory)' : '(Optional)'}
+                                            </h4>
+                                            {!fareQuoteData?.IsGSTMandatory && (
+                                                <button 
+                                                    type="button"
+                                                    onClick={() => setHasGST(false)} 
+                                                    style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '13px', cursor: 'pointer', textDecoration: 'underline' }}
+                                                >
+                                                    Remove GST
+                                                </button>
+                                            )}
+                                        </div>
+                                        
+                                        <div className="row">
+                                            <div className="col-md-4 mb-3">
+                                                <label style={{ fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>GST Number {fareQuoteData?.IsGSTMandatory && <span style={{ color: '#e8151b' }}>*</span>}</label>
+                                                <input
+                                                    type="text"
+                                                    className="form-control"
+                                                    placeholder="22AAAAA0000A1Z5"
+                                                    value={gstDetails.GSTNumber}
+                                                    onChange={(e) => setGstDetails({...gstDetails, GSTNumber: e.target.value.toUpperCase()})}
+                                                    style={{ padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                                                    required={fareQuoteData?.IsGSTMandatory}
+                                                />
+                                            </div>
+                                            <div className="col-md-4 mb-3">
+                                                <label style={{ fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>Company Name {fareQuoteData?.IsGSTMandatory && <span style={{ color: '#e8151b' }}>*</span>}</label>
+                                                <input
+                                                    type="text"
+                                                    className="form-control"
+                                                    placeholder="Acme Corp"
+                                                    value={gstDetails.GSTCompanyName}
+                                                    onChange={(e) => setGstDetails({...gstDetails, GSTCompanyName: e.target.value})}
+                                                    style={{ padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                                                    required={fareQuoteData?.IsGSTMandatory}
+                                                />
+                                            </div>
+                                            <div className="col-md-4 mb-3">
+                                                <label style={{ fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>Company Email {fareQuoteData?.IsGSTMandatory && <span style={{ color: '#e8151b' }}>*</span>}</label>
+                                                <input
+                                                    type="email"
+                                                    className="form-control"
+                                                    placeholder="finance@acme.com"
+                                                    value={gstDetails.GSTCompanyEmail}
+                                                    onChange={(e) => setGstDetails({...gstDetails, GSTCompanyEmail: e.target.value})}
+                                                    style={{ padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                                                    required={fareQuoteData?.IsGSTMandatory}
+                                                />
+                                            </div>
+                                            <div className="col-md-6 mb-3">
+                                                <label style={{ fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>Contact Number {fareQuoteData?.IsGSTMandatory && <span style={{ color: '#e8151b' }}>*</span>}</label>
+                                                <input
+                                                    type="text"
+                                                    className="form-control"
+                                                    placeholder="9876543210"
+                                                    value={gstDetails.GSTCompanyContactNumber}
+                                                    onChange={(e) => setGstDetails({...gstDetails, GSTCompanyContactNumber: e.target.value})}
+                                                    style={{ padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                                                    required={fareQuoteData?.IsGSTMandatory}
+                                                />
+                                            </div>
+                                            <div className="col-md-6 mb-3">
+                                                <label style={{ fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>Company Address {fareQuoteData?.IsGSTMandatory && <span style={{ color: '#e8151b' }}>*</span>}</label>
+                                                <input
+                                                    type="text"
+                                                    className="form-control"
+                                                    placeholder="City, State"
+                                                    value={gstDetails.GSTCompanyAddress}
+                                                    onChange={(e) => setGstDetails({...gstDetails, GSTCompanyAddress: e.target.value})}
+                                                    style={{ padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                                                    required={fareQuoteData?.IsGSTMandatory}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {!hasGST && !fareQuoteData?.IsGSTMandatory && fareQuoteData?.GSTAllowed && (
+                                    <div style={{ marginTop: '16px', padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px dashed #cbd5e1', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div style={{ fontSize: '14px', color: '#475569' }}>
+                                            <strong>Business Trip?</strong> Add your GST details to claim input tax credit.
+                                        </div>
+                                        <button 
+                                            type="button" 
+                                            onClick={() => setHasGST(true)}
+                                            style={{ padding: '8px 16px', borderRadius: '6px', border: '1px solid #e8151b', color: '#e8151b', background: '#fff', fontWeight: '600', fontSize: '13px', cursor: 'pointer' }}
+                                        >
+                                            + Add GST
+                                        </button>
+                                    </div>
+                                )}
 
                                 <h4 style={{ margin: '20px 0 16px 0', fontSize: '16px', fontWeight: '700', color: '#1a1a2e', display: 'flex', alignItems: 'center', gap: '8px', paddingTop: '20px', borderTop: '1px solid #f0f0f0' }}>
                                     <Mail size={18} color="#e8151b" /> Contact Details

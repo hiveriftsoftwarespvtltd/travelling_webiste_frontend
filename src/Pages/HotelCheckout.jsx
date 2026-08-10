@@ -78,6 +78,8 @@ export default function HotelCheckout() {
   const [contactEmail, setContactEmail] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [contactCountryCode, setContactCountryCode] = useState('+91');
+  const [panNumber, setPanNumber] = useState('');
+  const [showPriceBreakdown, setShowPriceBreakdown] = useState(false);
 
   // Build guest rooms from state
   const [guestRooms, setGuestRooms] = useState([]);
@@ -194,6 +196,11 @@ export default function HotelCheckout() {
 
     try {
       // Validate
+      const isPanMandatory = preBookData?.ValidationInfo?.PanMandatory;
+      if (isPanMandatory && !panNumber.trim()) {
+        throw new Error('PAN Card Number is mandatory for this booking.');
+      }
+
       for (const room of guestRooms) {
         for (const guest of room.guests) {
           if (!guest.FirstName.trim() || !guest.LastName.trim()) {
@@ -214,9 +221,7 @@ export default function HotelCheckout() {
       }
 
       // Calculate total amount to pay
-      const currentPrice = preBookData?.HotelResult?.[0]?.Rooms?.[0]?.TotalFare || state.selectedRoom?.TotalFare || state.hotel?.Rooms?.[0]?.TotalFare || 0;
-      const currentTaxes = Math.round(currentPrice * 0.12);
-      const amountToPay = currentPrice + currentTaxes;
+      const amountToPay = preBookData?.HotelResult?.[0]?.Rooms?.[0]?.TotalFare || state.selectedRoom?.TotalFare || state.hotel?.Rooms?.[0]?.TotalFare || 0;
 
       // ─── STEP 1: Create Razorpay Order on Backend ───────────────────────────
       setPaymentStatus('paying');
@@ -323,18 +328,22 @@ export default function HotelCheckout() {
           BedTypeCode: null,
           SmokingPreference: 0,
           Supplements: null,
-        HotelPassenger: room.guests.map((g, gi) => ({
-          Title: g.Title || 'Mr',
-          FirstName: g.FirstName,
-          LastName: g.LastName,
-          PaxType: 1, // 1 = Adult (simplified)
-          LeadPassenger: ri === 0 && gi === 0,
-          Age: g.Age || 30,
-          Email: contactEmail,
-          Phoneno: contactPhone,
-          CountryCode: 'IN',
-          CountryName: 'India',
-        })),
+        HotelPassenger: room.guests.map((g, gi) => {
+          const isLead = ri === 0 && gi === 0;
+          return {
+            Title: g.Title || 'Mr',
+            FirstName: g.FirstName,
+            LastName: g.LastName,
+            PaxType: 1, // 1 = Adult (simplified)
+            LeadPassenger: isLead,
+            Age: g.Age || 30,
+            Email: contactEmail,
+            Phoneno: contactPhone,
+            CountryCode: 'IN',
+            CountryName: 'India',
+            ...(isLead && panNumber ? { PAN: panNumber } : {})
+          };
+        }),
         };
       });
 
@@ -430,11 +439,11 @@ export default function HotelCheckout() {
   const hotel = state.hotel || {};
   const room = state.selectedRoom || hotel.Rooms?.[0] || {};
   const nights = state.nights || 1;
-  const price = room.TotalFare || hotel.MinPrice || 0;
-  const pricePerNight = nights > 0 ? Math.round(price / nights) : price;
+  const grandTotal = preBookData?.HotelResult?.[0]?.Rooms?.[0]?.TotalFare || room.TotalFare || hotel.MinPrice || 0;
+  const taxes = preBookData?.HotelResult?.[0]?.Rooms?.[0]?.TotalTax || room.TotalTax || 0;
+  const price = grandTotal - taxes;
+  const pricePerNight = nights > 0 ? (price / nights) : price;
   const mealType = MEAL_TYPES[room.MealType] || 'Room Only';
-  const taxes = Math.round(price * 0.12); // Approximate 12% GST
-  const grandTotal = price + taxes;
 
   // Cancellation policy text
   const cancelPolicy = preBookData?.HotelResult?.[0]?.Rooms?.[0]?.CancellationPolicies
@@ -681,6 +690,17 @@ export default function HotelCheckout() {
                           />
                         </div>
                       </InputField>
+
+                      {preBookData?.ValidationInfo?.PanMandatory && (
+                        <InputField label="PAN Card Number" id="panNumber" required>
+                          <input
+                            id="panNumber" type="text" className="hco-input"
+                            placeholder="ABCDE1234F" value={panNumber}
+                            onChange={e => setPanNumber(e.target.value.toUpperCase())} required
+                            style={{ textTransform: 'uppercase' }}
+                          />
+                        </InputField>
+                      )}
                     </div>
                   </div>
 
@@ -765,20 +785,18 @@ export default function HotelCheckout() {
                     <div className="hco-section-title"><CreditCard size={20} color="#e8151b" /> Price Summary</div>
 
                     <div className="hco-price-row">
-                      <span className="hco-price-label">₹{pricePerNight.toLocaleString()} × {nights} night{nights > 1 ? 's' : ''}</span>
-                      <span className="hco-price-value">₹{price.toLocaleString()}</span>
+                      <span className="hco-price-label">{state.rooms} Room{state.rooms > 1 ? 's' : ''} × {nights} Night{nights > 1 ? 's' : ''} (Base Price)</span>
+                      <span className="hco-price-value">₹{(grandTotal - taxes).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
+                    
                     <div className="hco-price-row">
-                      <span className="hco-price-label">{state.rooms} room{state.rooms > 1 ? 's' : ''} × {nights} nights</span>
-                      <span className="hco-price-value" style={{ color: '#10b981' }}>Included</span>
+                      <span className="hco-price-label">Taxes & Fees</span>
+                      <span className="hco-price-value">₹{taxes.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
-                    <div className="hco-price-row">
-                      <span className="hco-price-label">Taxes & Fees (GST ~12%)</span>
-                      <span className="hco-price-value">₹{taxes.toLocaleString()}</span>
-                    </div>
+                    
                     <div className="hco-total-row">
                       <span className="hco-total-label">Total Amount</span>
-                      <span className="hco-total-price">₹{grandTotal.toLocaleString()}</span>
+                      <span className="hco-total-price">₹{grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
 
                     {room.DayRates && room.DayRates.length > 0 && room.DayRates[0].length > 0 && (
@@ -810,7 +828,7 @@ export default function HotelCheckout() {
                           : 'Processing...'
                         }</>
                       ) : (
-                        <><CreditCard size={18} /> Confirm & Pay · ₹{grandTotal.toLocaleString()}</>
+                        <><CreditCard size={18} /> Confirm & Pay · ₹{grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</>
                       )}
                     </button>
 
