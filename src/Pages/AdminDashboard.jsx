@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 
 function AdminDashboard() {
@@ -389,8 +389,15 @@ function AdminDashboard() {
     const handleSaveGallery = async (e) => {
         e.preventDefault();
         try {
-            setLoading(true);
             const isEdit = !!galleryForm.id;
+            
+            // Limit to 7 images
+            if (!isEdit && gallery.length >= 7) {
+                showMessage('danger', 'You can only upload up to 7 images in the gallery.');
+                return;
+            }
+
+            setLoading(true);
             const url = isEdit
                 ? `${process.env.REACT_APP_API_BASE_URL}/gallery/${galleryForm.id}`
                 : `${process.env.REACT_APP_API_BASE_URL}/gallery`;
@@ -412,6 +419,9 @@ function AdminDashboard() {
                 showMessage('success', `Photo ${isEdit ? 'updated' : 'added'} successfully!`);
                 setGalleryForm({ id: null, imageUrl: '', title: 'gallery', caption: '', destination: '', status: 'Active' });
                 fetchAllData(token);
+            } else {
+                const errData = await res.json().catch(() => ({}));
+                showMessage('danger', errData.message || 'Failed to save photo');
             }
         } catch (err) {
             showMessage('danger', err.message);
@@ -430,6 +440,9 @@ function AdminDashboard() {
             if (res.ok) {
                 showMessage('success', 'Photo removed.');
                 fetchAllData(token);
+            } else {
+                const errData = await res.json().catch(() => ({}));
+                showMessage('danger', errData.message || 'Failed to delete photo');
             }
         } catch (err) {
             showMessage('danger', err.message);
@@ -659,7 +672,7 @@ function AdminDashboard() {
     };
 
     return (
-        <div className="admin-dashboard-container" style={{ background: '#f8fafc', minHeight: '100vh', padding: '40px 0' }}>
+        <div className="admin-dashboard-container" style={{ background: '#f8fafc', minHeight: '100vh', padding: '0' }}>
             <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
                 
@@ -757,23 +770,17 @@ function AdminDashboard() {
                     padding: 16px;
                     box-shadow: 0 4px 20px rgba(0,0,0,0.02);
                     position: sticky;
-                    top: 20px;
-                    max-height: calc(100vh - 40px);
+                    top: 0px;
+                    max-height: 100vh;
                     overflow-y: auto;
                 }
                 
+                .admin-sidebar-wrapper {
+                    -ms-overflow-style: none;
+                    scrollbar-width: none;
+                }
                 .admin-sidebar-wrapper::-webkit-scrollbar {
-                    width: 4px;
-                }
-                .admin-sidebar-wrapper::-webkit-scrollbar-track {
-                    background: transparent; 
-                }
-                .admin-sidebar-wrapper::-webkit-scrollbar-thumb {
-                    background: #cbd5e1; 
-                    border-radius: 10px;
-                }
-                .admin-sidebar-wrapper::-webkit-scrollbar-thumb:hover {
-                    background: #94a3b8; 
+                    display: none;
                 }
                 
                 .widget-grid {
@@ -809,7 +816,7 @@ function AdminDashboard() {
                     margin: 0;
                 }
             `}</style>
-            <div className="container" style={{ maxWidth: '1400px' }}>
+            <div className="container-fluid pe-4 ps-0" style={{ maxWidth: '100%' }}>
                 {/* Alert Message */}
                 {message.text && (
                     <div
@@ -823,16 +830,21 @@ function AdminDashboard() {
 
                 <div className="row gy-4">
                     {/* Tab Buttons Panel */}
-                    <div className="col-lg-3">
-                        <div className="admin-sidebar-wrapper" style={{ display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 40px)' }}>
-                            <div style={{ flex: 1 }}>
-                                <div className="mb-4 pb-3" style={{ borderBottom: '1px solid #e2e8f0' }}>
-                                    <h4 style={{ margin: 0, fontWeight: 800, color: '#1e293b', fontSize: '18px' }}>
-                                        <i className="fa-solid fa-plane-departure text-primary me-2" />
-                                        Jiyo Life Admin
-                                    </h4>
-                                </div>
-                                
+                    <div className="col-lg-3 ps-0">
+                        <div className="admin-sidebar-wrapper" style={{ display: 'flex', flexDirection: 'column', height: '100vh', borderRadius: '0 12px 12px 0' }}>
+                            {/* Fixed Logo Block */}
+                            <div className="mb-4 pb-3" style={{ borderBottom: '1px solid #e2e8f0', textAlign: 'center', flexShrink: 0 }}>
+                                <Link to="/" style={{ display: 'inline-block', width: '100%', maxWidth: '180px' }}>
+                                    <img src="/assets/img/logo-main-jiyo.png" alt="Jiyo Life Logo" style={{ width: '100%', height: 'auto', objectFit: 'contain', maxHeight: '80px' }} />
+                                </Link>
+                            </div>
+
+                            {/* Scrollable Navigation Block */}
+                            <div className="admin-sidebar-scroll-area" style={{ flex: 1, overflowY: 'auto', msOverflowStyle: 'none', scrollbarWidth: 'none', paddingRight: '4px' }}>
+                                <style>{`
+                                    .admin-sidebar-scroll-area::-webkit-scrollbar { display: none; }
+                                `}</style>
+
                                 <span style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: '#94a3b8', paddingLeft: '12px', display: 'block', marginBottom: '8px' }}>
                                     Core System
                                 </span>
@@ -1026,10 +1038,10 @@ function AdminDashboard() {
                                 </button>
 
                             </div>
-                            
-                            <div className="mt-4 pt-4" style={{ borderTop: '1px solid #e2e8f0' }}>
+
+                            <div className="mt-4 pt-4" style={{ borderTop: '1px solid #e2e8f0', flexShrink: 0 }}>
                                 <p style={{ margin: '0 0 10px 0', fontSize: '11px', color: '#64748b', textAlign: 'center' }}>
-                                    Logged in as:<br/>
+                                    Logged in as:<br />
                                     <span style={{ fontWeight: 600, color: '#1e293b' }}>{localStorage.getItem('admin_email')}</span>
                                 </p>
                                 <button onClick={handleLogout} className="btn btn-sm btn-outline-danger w-100" style={{ padding: '10px 0', borderRadius: '8px', fontWeight: '700' }}>
@@ -1058,7 +1070,7 @@ function AdminDashboard() {
                                     {activeTab === 'dashboard' && (
                                         <div>
                                             <h4 className="border-bottom pb-2 mb-20" style={{ fontWeight: 800 }}>Dashboard Overview</h4>
-                                            
+
                                             <div className="widget-grid">
                                                 <div className="metrics-card">
                                                     <h6>Total Bookings</h6>
@@ -1109,12 +1121,11 @@ function AdminDashboard() {
                                                             <td>{b.travelDate}</td>
                                                             <td>{b.mobile}</td>
                                                             <td>
-                                                                <span className={`badge ${
-                                                                    b.status === 'Confirmed' ? 'bg-success' :
-                                                                    b.status === 'Cancelled' ? 'bg-secondary' :
-                                                                    b.status === 'Contacted' ? 'bg-info' :
-                                                                    b.status === 'Follow Up' ? 'bg-warning' : 'bg-danger'
-                                                                }`}>{b.status || 'New'}</span>
+                                                                <span className={`badge ${b.status === 'Confirmed' ? 'bg-success' :
+                                                                        b.status === 'Cancelled' ? 'bg-secondary' :
+                                                                            b.status === 'Contacted' ? 'bg-info' :
+                                                                                b.status === 'Follow Up' ? 'bg-warning' : 'bg-danger'
+                                                                    }`}>{b.status || 'New'}</span>
                                                             </td>
                                                         </tr>
                                                     ))}
@@ -1134,7 +1145,7 @@ function AdminDashboard() {
                                     {activeTab === 'banner' && (
                                         <div>
                                             <h4 className="border-bottom pb-2 mb-20" style={{ fontWeight: 800 }}>Homepage Banners</h4>
-                                            
+
                                             {banners.map((slide, i) => (
                                                 <div key={slide._id || i} className="admin-card mb-4" style={{ background: '#f8fafc', boxShadow: 'none' }}>
                                                     <h5 style={{ fontWeight: '700', color: '#0071F4', marginBottom: '15px' }}>Banner Slide #{i + 1}</h5>
@@ -1153,21 +1164,7 @@ function AdminDashboard() {
                                                                 onChange={(e) => handleBannerChange(i, 'title', e.target.value)}
                                                             />
                                                         </div>
-                                                        <div className="col-md-4">
-                                                            <label>Button Text</label>
-                                                            <input
-                                                                type="text" className="form-control" value={slide.buttonText || ''}
-                                                                onChange={(e) => handleBannerChange(i, 'buttonText', e.target.value)}
-                                                            />
-                                                        </div>
-                                                        <div className="col-md-4">
-                                                            <label>Button Link</label>
-                                                            <input
-                                                                type="text" className="form-control" value={slide.buttonLink || ''}
-                                                                onChange={(e) => handleBannerChange(i, 'buttonLink', e.target.value)}
-                                                            />
-                                                        </div>
-                                                        <div className="col-md-4">
+                                                        <div className="col-md-12">
                                                             <label>Status</label>
                                                             <select
                                                                 className="form-control" value={slide.status || 'Active'}
@@ -1208,7 +1205,7 @@ function AdminDashboard() {
                                     {activeTab === 'category' && (
                                         <div>
                                             <h4 className="border-bottom pb-2 mb-20" style={{ fontWeight: 800 }}>Tour Categories</h4>
-                                            
+
                                             <form onSubmit={handleSaveCategory} className="admin-card mb-4" style={{ background: '#f8fafc', boxShadow: 'none' }}>
                                                 <h5 style={{ fontWeight: '700', marginBottom: '15px' }}>{categoryForm.id ? 'Edit Category' : 'Create Category'}</h5>
                                                 <div className="row gy-3">
@@ -1286,10 +1283,10 @@ function AdminDashboard() {
                                     {activeTab === 'destination' && (
                                         <div>
                                             <h4 className="border-bottom pb-2 mb-20" style={{ fontWeight: 800 }}>Destinations / Tour Listings</h4>
-                                            
+
                                             <form onSubmit={handleSaveDestination} className="admin-card mb-4" style={{ background: '#f8fafc', boxShadow: 'none' }}>
                                                 <h5 style={{ fontWeight: '700', marginBottom: '15px' }}>{destinationForm.id ? 'Edit Tour details' : 'Add New Tour Package'}</h5>
-                                                
+
                                                 <div className="row gy-3">
                                                     <div className="col-md-4">
                                                         <label>Tour Name *</label>
@@ -1436,7 +1433,7 @@ function AdminDashboard() {
                                     {activeTab === 'booking' && (
                                         <div>
                                             <h4 className="border-bottom pb-2 mb-20" style={{ fontWeight: 800 }}>Enquiry Booking Management</h4>
-                                            
+
                                             {/* Booking Filter Buttons */}
                                             <div className="d-flex gap-2 mb-4">
                                                 {['all', 'New', 'Contacted', 'Follow Up', 'Confirmed', 'Cancelled'].map(st => (
@@ -1513,7 +1510,7 @@ function AdminDashboard() {
                                     {activeTab === 'lead' && (
                                         <div>
                                             <h4 className="border-bottom pb-2 mb-20" style={{ fontWeight: 800 }}>Centralized Lead Console</h4>
-                                            
+
                                             <table className="table">
                                                 <thead>
                                                     <tr>
@@ -1531,11 +1528,10 @@ function AdminDashboard() {
                                                             <td>{ld.email || 'N/A'}</td>
                                                             <td>{ld.mobile || 'N/A'}</td>
                                                             <td>
-                                                                <span className={`badge ${
-                                                                    ld.source === 'Tour Booking Form' ? 'bg-primary' :
-                                                                    ld.source === 'Contact Form' ? 'bg-info' :
-                                                                    ld.source === 'Newsletter' ? 'bg-secondary' : 'bg-warning'
-                                                                }`}>{ld.source}</span>
+                                                                <span className={`badge ${ld.source === 'Tour Booking Form' ? 'bg-primary' :
+                                                                        ld.source === 'Contact Form' ? 'bg-info' :
+                                                                            ld.source === 'Newsletter' ? 'bg-secondary' : 'bg-warning'
+                                                                    }`}>{ld.source}</span>
                                                             </td>
                                                             <td>{new Date(ld.createdAt).toLocaleDateString()}</td>
                                                         </tr>
@@ -1556,18 +1552,15 @@ function AdminDashboard() {
                                     {activeTab === 'gallery' && (
                                         <div>
                                             <h4 className="border-bottom pb-2 mb-20" style={{ fontWeight: 800 }}>Gallery Management</h4>
-                                            
-                                            <form onSubmit={handleSaveGallery} className="admin-card mb-4" style={{ background: '#f8fafc', boxShadow: 'none' }}>
+
+                                            <form id="gallery-form-section" onSubmit={handleSaveGallery} className="admin-card mb-4" style={{ background: '#f8fafc', boxShadow: 'none' }}>
                                                 <h5 style={{ fontWeight: '700', marginBottom: '15px' }}>{galleryForm.id ? 'Edit Image details' : 'Add Photo to Album'}</h5>
                                                 <div className="row gy-3">
                                                     <div className="col-md-6">
                                                         <label>Image Caption</label>
                                                         <input type="text" className="form-control" value={galleryForm.caption} onChange={(e) => setGalleryForm({ ...galleryForm, caption: e.target.value })} />
                                                     </div>
-                                                    <div className="col-md-3">
-                                                        <label>Destination Category</label>
-                                                        <input type="text" className="form-control" value={galleryForm.destination} onChange={(e) => setGalleryForm({ ...galleryForm, destination: e.target.value })} placeholder="e.g. Kashmir" />
-                                                    </div>
+
                                                     <div className="col-md-3">
                                                         <label>Status</label>
                                                         <select className="form-control" value={galleryForm.status} onChange={(e) => setGalleryForm({ ...galleryForm, status: e.target.value })}>
@@ -1601,10 +1594,16 @@ function AdminDashboard() {
                                                             <img src={p.imageUrl} alt="" style={{ height: '160px', objectFit: 'cover' }} />
                                                             <div className="card-body p-3">
                                                                 <h6 style={{ margin: '0 0 5px 0' }}>{p.caption || 'No caption'}</h6>
-                                                                <span className="badge bg-light text-dark me-2">{p.destination || 'General'}</span>
+
                                                                 <span className={`badge ${p.status === 'Active' ? 'bg-success' : 'bg-secondary'}`}>{p.status || 'Active'}</span>
                                                                 <div className="mt-3">
-                                                                    <button onClick={() => setGalleryForm({ id: p._id, imageUrl: p.imageUrl, title: p.title, caption: p.caption || '', destination: p.destination || '', status: p.status || 'Active' })} className="btn btn-xs btn-outline-primary me-2"><i className="fa-solid fa-pen" /></button>
+                                                                    <button onClick={() => {
+                                                                        setGalleryForm({ id: p._id, imageUrl: p.imageUrl, title: p.title, caption: p.caption || '', destination: p.destination || '', status: p.status || 'Active' });
+                                                                        setTimeout(() => {
+                                                                            const formEl = document.getElementById('gallery-form-section');
+                                                                            if (formEl) formEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                                                        }, 50);
+                                                                    }} className="btn btn-xs btn-outline-primary me-2"><i className="fa-solid fa-pen" /></button>
                                                                     <button onClick={() => handleDeleteGallery(p._id)} className="btn btn-xs btn-outline-danger"><i className="fa-solid fa-trash" /></button>
                                                                 </div>
                                                             </div>
@@ -1621,10 +1620,10 @@ function AdminDashboard() {
                                     {activeTab === 'blog' && (
                                         <div>
                                             <h4 className="border-bottom pb-2 mb-20" style={{ fontWeight: 800 }}>Blogs Manager</h4>
-                                            
+
                                             <form onSubmit={handleAddBlog} className="admin-card mb-4" style={{ background: '#f8fafc', boxShadow: 'none' }}>
                                                 <h5 style={{ fontWeight: '700', marginBottom: '15px' }}>{blogForm.id ? 'Edit Blog details' : 'Create New Blog'}</h5>
-                                                
+
                                                 <div className="row gy-3">
                                                     <div className="col-md-4">
                                                         <label>Blog Title *</label>
@@ -1638,7 +1637,7 @@ function AdminDashboard() {
                                                         <label>Blog Category</label>
                                                         <input type="text" className="form-control" value={blogForm.category || ''} onChange={(e) => setBlogForm({ ...blogForm, category: e.target.value })} />
                                                     </div>
-                                                    
+
                                                     <div className="col-md-6">
                                                         <label>Meta Title (SEO)</label>
                                                         <input type="text" className="form-control" value={blogForm.metaTitle || ''} onChange={(e) => setBlogForm({ ...blogForm, metaTitle: e.target.value })} />
@@ -1727,11 +1726,11 @@ function AdminDashboard() {
                                     {activeTab === 'review' && (
                                         <div>
                                             <h4 className="border-bottom pb-2 mb-20" style={{ fontWeight: 800 }}>Customer Reviews</h4>
-                                            
+
                                             {/* Add/Edit Review Form */}
                                             <form onSubmit={handleSaveReview} className="admin-card mb-4" style={{ background: '#f8fafc', boxShadow: 'none' }}>
                                                 <h5 style={{ fontWeight: '700', marginBottom: '15px' }}>{reviewForm.id ? 'Edit Review' : 'Add New Review'}</h5>
-                                                
+
                                                 <div className="row gy-3">
                                                     <div className="col-md-4">
                                                         <label>Customer Name *</label>
@@ -1849,7 +1848,7 @@ function AdminDashboard() {
                                     {activeTab === 'contact' && (
                                         <div>
                                             <h4 className="border-bottom pb-2 mb-20" style={{ fontWeight: 800 }}>Website Contact Enquiries</h4>
-                                            
+
                                             <table className="table">
                                                 <thead>
                                                     <tr>
@@ -1943,7 +1942,7 @@ function AdminDashboard() {
                                     {activeTab === 'settings' && (
                                         <div>
                                             <h4 className="border-bottom pb-2 mb-20" style={{ fontWeight: 800 }}>Website Global Settings</h4>
-                                            
+
                                             <form onSubmit={handleSaveSettings} className="row gy-3">
                                                 <div className="col-12"><h5 className="text-primary mt-2">1. Company Details</h5></div>
                                                 <div className="col-md-6">
@@ -2014,7 +2013,7 @@ function AdminDashboard() {
                                     {activeTab === 'admins' && (
                                         <div>
                                             <h4 className="border-bottom pb-2 mb-20" style={{ fontWeight: 800 }}>Admin Profiles Directory</h4>
-                                            
+
                                             <table className="table">
                                                 <thead>
                                                     <tr>
@@ -2057,8 +2056,8 @@ function AdminDashboard() {
                     padding: '20px'
                 }}>
                     <div className="admin-card" style={{ maxWidth: '600px', width: '100%', padding: '30px', position: 'relative', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)', background: '#ffffff' }}>
-                        <button 
-                            onClick={() => setSelectedReviewForView(null)} 
+                        <button
+                            onClick={() => setSelectedReviewForView(null)}
                             style={{
                                 position: 'absolute',
                                 top: '20px',
@@ -2072,12 +2071,12 @@ function AdminDashboard() {
                         >
                             <i className="fa-solid fa-xmark" />
                         </button>
-                        
+
                         <h4 style={{ fontWeight: 800, color: '#1e293b', marginBottom: '20px', borderBottom: '1px solid #e2e8f0', paddingBottom: '10px' }}>
                             <i className="fa-solid fa-star text-warning me-2" />
                             Review Details
                         </h4>
-                        
+
                         <div className="row gy-3">
                             <div className="col-md-6">
                                 <label style={{ display: 'block', margin: 0, color: '#64748b', fontSize: '11px' }}>Customer Name</label>
@@ -2116,13 +2115,13 @@ function AdminDashboard() {
                             </div>
                             <div className="col-12 mt-2">
                                 <label style={{ display: 'block', margin: 0, color: '#64748b', fontSize: '11px' }}>Review Comment</label>
-                                <div style={{ 
-                                    background: '#f8fafc', 
-                                    border: '1px solid #e2e8f0', 
-                                    borderRadius: '8px', 
-                                    padding: '16px', 
-                                    fontSize: '14px', 
-                                    lineHeight: '1.6', 
+                                <div style={{
+                                    background: '#f8fafc',
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: '8px',
+                                    padding: '16px',
+                                    fontSize: '14px',
+                                    lineHeight: '1.6',
                                     color: '#334155',
                                     whiteSpace: 'pre-wrap',
                                     marginTop: '6px'
@@ -2131,11 +2130,11 @@ function AdminDashboard() {
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div className="mt-4 text-end">
-                            <button 
-                                onClick={() => setSelectedReviewForView(null)} 
-                                className="btn btn-primary" 
+                            <button
+                                onClick={() => setSelectedReviewForView(null)}
+                                className="btn btn-primary"
                                 style={{ padding: '10px 24px', fontWeight: '700', borderRadius: '8px' }}
                             >
                                 Close View

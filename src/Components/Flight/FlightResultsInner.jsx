@@ -572,7 +572,7 @@ function FlightResultsInner() {
                                 const dummyFlight = {
                                     ResultIndex: segOption.id,
                                     Segments: [segOption.legs],
-                                    Fare: { PublishedFare: segOption.minFare },
+                                    Fare: { PublishedFare: segOption.minFare, OfferedFare: segOption.minFare },
                                     AirlineCode: segOption.legs[0]?.Airline?.AirlineCode,
                                     TraceId: multiCityItineraries[0]?.TraceId
                                 };
@@ -581,6 +581,7 @@ function FlightResultsInner() {
                                         key={segOption.id}
                                         flight={dummyFlight}
                                         isSelected={isSelected}
+                                        hidePrice={true}
                                         onSelect={() => {
                                             setSelectedMultiCityFlights(prev => ({ ...prev, [activeMultiCityTab]: segOption }));
                                             if (activeMultiCityTab < multiCitySegmentsData.length - 1) {

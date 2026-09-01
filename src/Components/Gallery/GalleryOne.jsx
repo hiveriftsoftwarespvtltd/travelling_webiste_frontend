@@ -1,10 +1,11 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Modal from './Modal';
 import { Link } from 'react-router-dom';
 
 function GalleryOne() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalImage, setModalImage] = useState('');
+    const [modalCaption, setModalCaption] = useState('');
     const [gallery, setGallery] = useState([]);
 
     useEffect(() => {
@@ -20,9 +21,10 @@ function GalleryOne() {
     }, []);
 
     // Function to open the modal with the selected image
-    const openModal = (imageSrc, event) => {
+    const openModal = (imageSrc, caption, event) => {
         event.preventDefault(); // Prevent default link behavior
         setModalImage(imageSrc);
+        setModalCaption(caption);
         setIsModalOpen(true);
     };
 
@@ -49,7 +51,7 @@ function GalleryOne() {
                             <Link
                                 to={gallery[0].imageUrl}
                                 className="popup-image"
-                                onClick={(e) => openModal(gallery[0].imageUrl, e)}
+                                onClick={(e) => openModal(gallery[0].imageUrl, gallery[0].caption, e)}
                             >
                                 <div className="icon-btn">
                                     <i className="fal fa-magnifying-glass-plus" />
@@ -58,7 +60,7 @@ function GalleryOne() {
                             <img
                                 src={gallery[0].imageUrl || "/assets/img/normal/about_3_1.jpg"}
                                 alt="gallery"
-                                onClick={(e) => openModal(gallery[0].imageUrl, e)}
+                                onClick={(e) => openModal(gallery[0].imageUrl, gallery[0].caption, e)}
                                 style={{ width: '100%', height: '520px', objectFit: 'cover' }}
                             />
                         </div>
@@ -77,7 +79,7 @@ function GalleryOne() {
                                 <Link
                                     to={gallery[1].imageUrl}
                                     className="popup-image"
-                                    onClick={(e) => openModal(gallery[1].imageUrl, e)}
+                                    onClick={(e) => openModal(gallery[1].imageUrl, gallery[1].caption, e)}
                                 >
                                     <div className="icon-btn">
                                         <i className="fal fa-magnifying-glass-plus" />
@@ -86,7 +88,7 @@ function GalleryOne() {
                                 <img
                                     src={gallery[1].imageUrl || "/assets/img/normal/about_3_1.jpg"}
                                     alt="gallery"
-                                    onClick={(e) => openModal(gallery[1].imageUrl, e)}
+                                    onClick={(e) => openModal(gallery[1].imageUrl, gallery[1].caption, e)}
                                     style={{ width: '100%', height: '248px', objectFit: 'cover' }}
                                 />
                             </div>
@@ -98,7 +100,7 @@ function GalleryOne() {
                                 <Link
                                     to={gallery[2].imageUrl}
                                     className="popup-image"
-                                    onClick={(e) => openModal(gallery[2].imageUrl, e)}
+                                    onClick={(e) => openModal(gallery[2].imageUrl, gallery[2].caption, e)}
                                 >
                                     <div className="icon-btn">
                                         <i className="fal fa-magnifying-glass-plus" />
@@ -107,7 +109,7 @@ function GalleryOne() {
                                 <img
                                     src={gallery[2].imageUrl || "/assets/img/normal/about_3_1.jpg"}
                                     alt="gallery"
-                                    onClick={(e) => openModal(gallery[2].imageUrl, e)}
+                                    onClick={(e) => openModal(gallery[2].imageUrl, gallery[2].caption, e)}
                                     style={{ width: '100%', height: '248px', objectFit: 'cover' }}
                                 />
                             </div>
@@ -126,7 +128,7 @@ function GalleryOne() {
                             <Link
                                 to={gallery[3].imageUrl}
                                 className="popup-image"
-                                onClick={(e) => openModal(gallery[3].imageUrl, e)}
+                                onClick={(e) => openModal(gallery[3].imageUrl, gallery[3].caption, e)}
                             >
                                 <div className="icon-btn">
                                     <i className="fal fa-magnifying-glass-plus" />
@@ -135,7 +137,7 @@ function GalleryOne() {
                             <img
                                 src={gallery[3].imageUrl || "/assets/img/normal/about_3_1.jpg"}
                                 alt="gallery"
-                                onClick={(e) => openModal(gallery[3].imageUrl, e)}
+                                onClick={(e) => openModal(gallery[3].imageUrl, gallery[3].caption, e)}
                                 style={{ width: '100%', height: '520px', objectFit: 'cover' }}
                             />
                         </div>
@@ -154,7 +156,7 @@ function GalleryOne() {
                                 <Link
                                     to={gallery[4].imageUrl}
                                     className="popup-image"
-                                    onClick={(e) => openModal(gallery[4].imageUrl, e)}
+                                    onClick={(e) => openModal(gallery[4].imageUrl, gallery[4].caption, e)}
                                 >
                                     <div className="icon-btn">
                                         <i className="fal fa-magnifying-glass-plus" />
@@ -163,7 +165,7 @@ function GalleryOne() {
                                 <img
                                     src={gallery[4].imageUrl || "/assets/img/normal/about_3_1.jpg"}
                                     alt="gallery"
-                                    onClick={(e) => openModal(gallery[4].imageUrl, e)}
+                                    onClick={(e) => openModal(gallery[4].imageUrl, gallery[4].caption, e)}
                                     style={{ width: '100%', height: '248px', objectFit: 'cover' }}
                                 />
                             </div>
@@ -175,7 +177,7 @@ function GalleryOne() {
                                 <Link
                                     to={gallery[5].imageUrl}
                                     className="popup-image"
-                                    onClick={(e) => openModal(gallery[5].imageUrl, e)}
+                                    onClick={(e) => openModal(gallery[5].imageUrl, gallery[5].caption, e)}
                                 >
                                     <div className="icon-btn">
                                         <i className="fal fa-magnifying-glass-plus" />
@@ -184,7 +186,7 @@ function GalleryOne() {
                                 <img
                                     src={gallery[5].imageUrl || "/assets/img/normal/about_3_1.jpg"}
                                     alt="gallery"
-                                    onClick={(e) => openModal(gallery[5].imageUrl, e)}
+                                    onClick={(e) => openModal(gallery[5].imageUrl, gallery[5].caption, e)}
                                     style={{ width: '100%', height: '248px', objectFit: 'cover' }}
                                 />
                             </div>
@@ -203,7 +205,7 @@ function GalleryOne() {
                             <Link
                                 to={gallery[6].imageUrl}
                                 className="popup-image"
-                                onClick={(e) => openModal(gallery[6].imageUrl, e)}
+                                onClick={(e) => openModal(gallery[6].imageUrl, gallery[6].caption, e)}
                             >
                                 <div className="icon-btn">
                                     <i className="fal fa-magnifying-glass-plus" />
@@ -212,7 +214,7 @@ function GalleryOne() {
                             <img
                                 src={gallery[6].imageUrl || "/assets/img/normal/about_3_1.jpg"}
                                 alt="gallery"
-                                onClick={(e) => openModal(gallery[6].imageUrl, e)}
+                                onClick={(e) => openModal(gallery[6].imageUrl, gallery[6].caption, e)}
                                 style={{ width: '100%', height: '520px', objectFit: 'cover' }}
                             />
                         </div>
@@ -225,10 +227,9 @@ function GalleryOne() {
     };
 
     return (
-        <div className="gallery-area py-5">
+        <div className="gallery-area pb-5 pt-0">
             <div className="container th-container shape-mockup-wrap">
-                <div className="title-area text-center">
-                    <span className="css-ur045q-sub">Make Your Tour More Pleasure</span>
+                <div className="title-area text-center mb-3">
                     <h2 className="sec-title css-ur045q">Recent Gallery</h2>
                 </div>
                 <div className="row gy-10 gx-10 justify-content-center align-items-center">
@@ -251,7 +252,7 @@ function GalleryOne() {
                     <img className="gmovingX" src="/assets/img/shape/shape_4.png" alt="shape" />
                 </div>
             </div>
-            <Modal isOpen={isModalOpen} closeModal={closeModal} imageSrc={modalImage} />
+            <Modal isOpen={isModalOpen} closeModal={closeModal} imageSrc={modalImage} caption={modalCaption} />
         </div>
     );
 }

@@ -13,7 +13,7 @@ function AirlineLogo({ code, name }) {
     );
 }
 
-function RoundTripFlightCard({ flight, isSelected, onSelect }) {
+function RoundTripFlightCard({ flight, isSelected, onSelect, hidePrice = false }) {
     const fare = flight.Fare;
     const first = flight.Segments[0][0];
     const last = flight.Segments[0][flight.Segments[0].length - 1];
@@ -22,6 +22,7 @@ function RoundTripFlightCard({ flight, isSelected, onSelect }) {
     const totalDur = flight.Segments[0].reduce((a, leg, i) => a + leg.Duration + (i > 0 ? Math.max(0, (new Date(leg.Origin.DepTime) - new Date(flight.Segments[0][i - 1].Destination.ArrTime)) / 60000) : 0), 0);
 
     const formatTime = (d) => new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    const formatDate = (d) => new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
     const formatDuration = (m) => `${Math.floor(m / 60)}h ${m % 60}m`;
 
     return (
@@ -73,6 +74,7 @@ function RoundTripFlightCard({ flight, isSelected, onSelect }) {
                 {/* Dep */}
                 <div style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: '16px', fontWeight: '800', color: '#1a1a2e', lineHeight: 1 }}>{formatTime(first.Origin.DepTime)}</div>
+                    <div style={{ fontSize: '11px', color: '#d81b21', marginTop: '4px', fontWeight: '700' }}>{formatDate(first.Origin.DepTime)}</div>
                     <div style={{ fontSize: '11px', color: '#687b8f', marginTop: '2px' }}>{first.Origin.Airport.CityCode}</div>
                 </div>
 
@@ -90,14 +92,17 @@ function RoundTripFlightCard({ flight, isSelected, onSelect }) {
                 {/* Arr */}
                 <div style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: '16px', fontWeight: '800', color: '#1a1a2e', lineHeight: 1 }}>{formatTime(last.Destination.ArrTime)}</div>
+                    <div style={{ fontSize: '11px', color: '#d81b21', marginTop: '4px', fontWeight: '700' }}>{formatDate(last.Destination.ArrTime)}</div>
                     <div style={{ fontSize: '11px', color: '#687b8f', marginTop: '2px' }}>{last.Destination.Airport.CityCode}</div>
                 </div>
             </div>
 
             {/* Price */}
-            <div className="rtc-price">
-                <div style={{ fontSize: '15px', fontWeight: '800', color: '#1a1a2e' }}>₹{Math.round(fare.OfferedFare).toLocaleString('en-IN')}</div>
-            </div>
+            {!hidePrice && (
+                <div className="rtc-price">
+                    <div style={{ fontSize: '15px', fontWeight: '800', color: '#1a1a2e' }}>₹{Math.round(fare.OfferedFare).toLocaleString('en-IN')}</div>
+                </div>
+            )}
         </div>
         </>
     );

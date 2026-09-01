@@ -39,7 +39,7 @@ function BannerOne() {
         /* ===== OUTER WRAPPER ===== */
         .hero-section-wrap {
           width: 100%;
-          background: #0d1b2a;
+          background: #ffffff;
           font-family: 'Inter', sans-serif;
           position: relative;
         }
@@ -99,35 +99,42 @@ function BannerOne() {
         }
         .hero-badges {
           display: flex;
+          gap: 16px;
           flex-wrap: wrap;
-          align-items: center;
-          gap: 15px;
         }
         .hero-badge-item {
           display: flex;
           align-items: center;
           gap: 8px;
-          font-size: 14px;
+          font-size: 13px;
           font-weight: 600;
           color: #0d1b2a;
+          background: rgba(255,255,255,0.85);
+          padding: 8px 12px;
+          border-radius: 8px;
+          backdrop-filter: blur(4px);
         }
         .hero-badge-icon {
-          width: 32px;
-          height: 32px;
-          background: #e8151b;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
+          color: #e8151b;
+          font-size: 16px;
         }
-        .hero-badge-icon i { color: #fff; font-size: 13px; }
 
         /* ===== FILTER BOX ===== */
         .hero-filter-box {
           width: 100%;
           position: relative;
           z-index: 10;
+        }
+
+        /* ===== FILTER WRAPPER ===== */
+        .hero-filter-wrapper {
+          position: absolute;
+          bottom: -40px;
+          left: 50%;
+          transform: translateX(-50%);
+          z-index: 10;
+          width: 100%;
+          padding: 0 15px;
         }
 
         /* ===== RESPONSIVE ===== */
@@ -137,19 +144,31 @@ function BannerOne() {
         @media (max-width: 991px) {
           .hero-inner-content { padding: 110px 20px 0 20px; }
           .hero-text-block { padding-bottom: 22px; }
+          .hero-filter-wrapper {
+            position: relative;
+            bottom: auto;
+            left: auto;
+            transform: none;
+            margin-top: -150px;
+            padding: 0 12px;
+          }
         }
         @media (max-width: 576px) {
           .hero-inner-content { padding: 100px 12px 0 12px; }
           .hero-text-block { padding-bottom: 16px; }
+          .hero-filter-wrapper {
+            margin-top: -200px;
+          }
         }
       `}</style>
 
       {/* SWIPER BACKGROUND & CONTENT SLIDER */}
       <Swiper
+        key={slides.length}
         modules={[Autoplay, EffectFade]}
         effect="fade"
-        loop={slides.length > 1}
-        autoplay={slides.length > 1 ? { delay: 6000, disableOnInteraction: false } : false}
+        loop={true}
+        autoplay={{ delay: 5000, disableOnInteraction: false }}
         style={{ width: '100%', minHeight: '650px' }}
       >
         {slides.map((slide, idx) => (
@@ -174,42 +193,20 @@ function BannerOne() {
                     {slide.subTitle}
                   </p>
                   
-                  {slide.buttonText ? (
-                    <div style={{ marginTop: '10px' }}>
-                      <Link
-                        to={slide.buttonLink || '/destination'}
-                        className="th-btn"
-                        style={{
-                          background: '#e8151b',
-                          color: '#fff',
-                          padding: '12px 28px',
-                          borderRadius: '8px',
-                          fontWeight: '700',
-                          fontSize: '15px',
-                          textDecoration: 'none',
-                          boxShadow: '0 4px 15px rgba(232, 21, 27, 0.35)',
-                          display: 'inline-block'
-                        }}
-                      >
-                        {slide.buttonText}
-                      </Link>
+                  <div className="hero-badges">
+                    <div className="hero-badge-item">
+                      <div className="hero-badge-icon"><i className="fa-solid fa-location-dot"></i></div>
+                      <div style={{ lineHeight: '1.2' }}>Best Price<br />Guarantee</div>
                     </div>
-                  ) : (
-                    <div className="hero-badges">
-                      <div className="hero-badge-item">
-                        <div className="hero-badge-icon"><i className="fa-solid fa-location-dot"></i></div>
-                        <div style={{ lineHeight: '1.2' }}>Best Price<br />Guarantee</div>
-                      </div>
-                      <div className="hero-badge-item">
-                        <div className="hero-badge-icon"><i className="fa-solid fa-headset"></i></div>
-                        <div style={{ lineHeight: '1.2' }}>24/7 Customer<br />Support</div>
-                      </div>
-                      <div className="hero-badge-item">
-                        <div className="hero-badge-icon"><i className="fa-solid fa-gem"></i></div>
-                        <div style={{ lineHeight: '1.2' }}>Handpicked<br />Experiences</div>
-                      </div>
+                    <div className="hero-badge-item">
+                      <div className="hero-badge-icon"><i className="fa-solid fa-headset"></i></div>
+                      <div style={{ lineHeight: '1.2' }}>24/7 Customer<br />Support</div>
                     </div>
-                  )}
+                    <div className="hero-badge-item">
+                      <div className="hero-badge-icon"><i className="fa-solid fa-gem"></i></div>
+                      <div style={{ lineHeight: '1.2' }}>Handpicked<br />Experiences</div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -218,7 +215,7 @@ function BannerOne() {
       </Swiper>
 
       {/* FLOATING FILTER CARD ABOVE SLIDER */}
-      <div className="container" style={{ position: 'absolute', bottom: '-40px', left: '50%', transform: 'translateX(-50%)', zIndex: 10, width: '100%', padding: '0 15px' }}>
+      <div className="container hero-filter-wrapper">
         <div className="hero-filter-box">
           <HeroSearchFilter />
         </div>

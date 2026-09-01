@@ -24,7 +24,7 @@ function HomeOne() {
             <CategoryOne />
             <AboutOne />
             <TourOne />
-            {/* <GalleryOne /> */}
+            <GalleryOne />
             {/* <CounterOne /> */}
             {/* <TestimonialOne /> */}
             <HomeCta />

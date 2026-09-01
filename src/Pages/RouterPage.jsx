@@ -19,7 +19,6 @@ const ShopDetails = lazy(() => import('./ShopDetails'));
 const Cart = lazy(() => import('./Cart'));
 const Checkout = lazy(() => import('./Checkout'));
 const Wishlist = lazy(() => import('./Wishlist'));
-const Gallery = lazy(() => import('./Gallery'));
 const Tour = lazy(() => import('./Tour'));
 const TourDetails = lazy(() => import('./TourDetails'));
 const Resort = lazy(() => import('./Resort'));
@@ -72,7 +71,6 @@ function RouterPage() {
           <Route path="/cart" element={<Cart />}></Route>
           <Route path="/checkout" element={<Checkout />}></Route>
           <Route path="/wishlist" element={<Wishlist />}></Route>
-          <Route path="/gallery" element={<Gallery />}></Route>
           <Route path="/tour" element={<Tour />}></Route>
           <Route path="/tour-details" element={<TourDetails />}></Route>
           <Route path="/flight-results" element={<FlightResults />}></Route>

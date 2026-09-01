@@ -211,8 +211,8 @@ function FooterOne() {
                         <h4 className="ft-widget-title">Company</h4>
                         <ul className="ft-links">
                             <li><Link to="/about">About Us</Link></li>
-                            <li><Link to="/contact">Careers</Link></li>
-                            <li><Link to="/blog">Press</Link></li>
+                            <li><Link to="/destination">Destination</Link></li>
+                            <li><Link to="/service">Service</Link></li>
                             <li><Link to="/blog">Blog</Link></li>
                         </ul>
                     </div>
