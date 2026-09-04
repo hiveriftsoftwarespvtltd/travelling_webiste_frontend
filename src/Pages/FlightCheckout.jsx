@@ -724,10 +724,7 @@ function FlightCheckout() {
                     Email: contactEmail,
                     IsLeadPax: pax.IsLeadPax,
                     FFAirlineCode: null,
-                    FFNumber: null,
-                    Baggage: [],
-                    MealDynamic: [],
-                    SeatDynamic: []
+                    FFNumber: null
                 };
 
                 // Add PAN & GST & Non-LCC SSRs to Payload
@@ -754,15 +751,28 @@ function FlightCheckout() {
 
                     Object.keys(selectedSSR).forEach(sectorIdx => {
                         const ssr = selectedSSR[sectorIdx]?.[paxIndex];
-                        if (ssr?.meal) MealDynamic.push(ssr.meal);
-                        if (ssr?.baggage) Baggage.push(ssr.baggage);
-                        if (ssr?.seat) SeatDynamic.push(ssr.seat);
-                        if (ssr?.special) SpecialServices.push(ssr.special);
+                        const fixedWayType = parseInt(sectorIdx) === 0 ? 1 : 2;
+
+                        // TBO throws "Invalid Baggage" or "Invalid Meal" if we explicitly send 0-price included items
+                        if (ssr?.meal && (ssr.meal.Price > 0 || ssr.meal.Price === undefined)) {
+                            MealDynamic.push({ ...ssr.meal, WayType: fixedWayType });
+                        }
+                        if (ssr?.baggage && (ssr.baggage.Price > 0 || ssr.baggage.Price === undefined)) {
+                            Baggage.push({ ...ssr.baggage, WayType: fixedWayType });
+                        }
+                        
+                        // Seats are different, 0-price seats are usually free selections (like middle seats) that MUST be passed
+                        if (ssr?.seat) {
+                            SeatDynamic.push({ ...ssr.seat, WayType: fixedWayType });
+                        }
+                        if (ssr?.special) {
+                            SpecialServices.push({ ...ssr.special, WayType: fixedWayType });
+                        }
                     });
 
-                    mappedPax.MealDynamic = MealDynamic;
-                    mappedPax.Baggage = Baggage;
-                    mappedPax.SeatDynamic = SeatDynamic;
+                    if (MealDynamic.length > 0) mappedPax.MealDynamic = MealDynamic;
+                    if (Baggage.length > 0) mappedPax.Baggage = Baggage;
+                    if (SeatDynamic.length > 0) mappedPax.SeatDynamic = SeatDynamic;
                     // TBO typically merges SpecialServices into MealDynamic or SpecialServices depending on API version.
                     // We'll pass it if it exists.
                     if (SpecialServices.length > 0) mappedPax.SpecialServices = SpecialServices;

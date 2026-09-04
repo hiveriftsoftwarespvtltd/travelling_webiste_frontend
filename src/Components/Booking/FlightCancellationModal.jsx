@@ -50,10 +50,22 @@ export default function FlightCancellationModal({ booking, onClose, onSuccess })
                 setCharges(response.data.Response);
                 setStep(2);
             } else {
-                setError(response.data?.Response?.Error?.ErrorMessage || 'Failed to fetch cancellation charges.');
+                setCharges({
+                    CancellationCharge: 'TBD',
+                    RefundAmount: 'TBD',
+                    IsFallback: true,
+                    Message: response.data?.Response?.Error?.ErrorMessage || 'Unable to fetch dynamic charges. The airline will calculate them offline.'
+                });
+                setStep(2);
             }
         } catch (err) {
-            setError(err.response?.data?.details?.ErrorMessage || err.response?.data?.message || 'Error fetching charges.');
+            setCharges({
+                CancellationCharge: 'TBD',
+                RefundAmount: 'TBD',
+                IsFallback: true,
+                Message: err.response?.data?.details?.ErrorMessage || err.response?.data?.message || 'Error fetching charges. The airline will calculate them offline.'
+            });
+            setStep(2);
         } finally {
             setLoading(false);
         }
@@ -243,20 +255,29 @@ export default function FlightCancellationModal({ booking, onClose, onSuccess })
                                     <span className="fw-bold text-dark fs-6">₹{booking.Fare?.OfferedFare || 0}</span>
                                 </div>
                                 
-                                <div className="d-flex justify-content-between align-items-center mb-3">
-                                    <span className="text-secondary fw-medium fs-6">Airline Cancellation Charges</span>
-                                    <span className="fw-bold text-danger fs-6">- ₹{charges.CancellationCharge || 0}</span>
-                                </div>
+                                {charges.IsFallback ? (
+                                    <div className="alert alert-warning m-0">
+                                        <strong>Note:</strong> {charges.Message} <br />
+                                        If you proceed with cancellation, the refund (if applicable) will be processed as per airline policy.
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="d-flex justify-content-between align-items-center mb-3">
+                                            <span className="text-secondary fw-medium fs-6">Airline Cancellation Charges</span>
+                                            <span className="fw-bold text-danger fs-6">- ₹{charges.CancellationCharge || 0}</span>
+                                        </div>
 
-                                <div className="d-flex justify-content-between align-items-center mb-4">
-                                    <span className="text-secondary fw-medium fs-6">Agency Amendment Charges</span>
-                                    <span className="fw-bold text-danger fs-6">- ₹{charges.B2BAmendmentCharges || 0}</span>
-                                </div>
+                                        <div className="d-flex justify-content-between align-items-center mb-4">
+                                            <span className="text-secondary fw-medium fs-6">Agency Amendment Charges</span>
+                                            <span className="fw-bold text-danger fs-6">- ₹{charges.B2BAmendmentCharges || 0}</span>
+                                        </div>
 
-                                <div className="d-flex justify-content-between align-items-center pt-3 border-top border-2 border-success border-opacity-25 mt-2 bg-success bg-opacity-10 p-3 rounded-3">
-                                    <span className="fw-bold fs-5 text-success">Estimated Refund</span>
-                                    <span className="fw-bold fs-4 text-success">₹{charges.RefundAmount || 0}</span>
-                                </div>
+                                        <div className="d-flex justify-content-between align-items-center pt-3 border-top border-2 border-success border-opacity-25 mt-2 bg-success bg-opacity-10 p-3 rounded-3">
+                                            <span className="fw-bold fs-5 text-success">Estimated Refund</span>
+                                            <span className="fw-bold fs-4 text-success">₹{charges.RefundAmount || 0}</span>
+                                        </div>
+                                    </>
+                                )}
                             </div>
 
                             <div className="d-flex gap-3">

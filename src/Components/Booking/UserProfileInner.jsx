@@ -43,19 +43,19 @@ function UserProfileInner() {
     const isActive = (path) => location.pathname === path || (location.pathname === '/user-profile' && path === '/user-profile');
 
     return (
-        <section style={{ backgroundColor: '#F8FAFC', minHeight: '100vh', paddingTop: '100px', paddingBottom: '60px', fontFamily: "'Inter', sans-serif" }}>
+        <section style={{ backgroundColor: '#F8FAFC', minHeight: '100vh', paddingTop: '75px', paddingBottom: '0px', fontFamily: "'Inter', sans-serif" }}>
             <style>{`
-                .prof-wrapper { max-width: 100%; margin: 0; padding: 0 40px 0 0; box-sizing: border-box; overflow: hidden; }
+                .prof-wrapper { max-width: 100%; margin: 0; padding: 0 40px 0 0; box-sizing: border-box; }
                 .prof-container { display: flex; align-items: flex-start; gap: 40px; box-sizing: border-box; width: 100%; }
                 
                 /* --- SIDEBAR --- */
                 .prof-sidebar {
-                    width: 340px; background: #fff; padding: 40px 30px;
-                    border-radius: 0 24px 24px 0; flex-shrink: 0; position: sticky; top: 100px; 
+                    width: 340px; background: #ffffff; padding: 20px 30px;
+                    border-radius: 0; flex-shrink: 0; position: sticky; top: 75px; 
                     box-shadow: 10px 10px 40px rgba(0,0,0,0.03); border: 1px solid rgba(0,0,0,0.04);
-                    border-left: none;
+                    border-left: none; min-height: calc(100vh - 75px);
                 }
-                .prof-avatar-wrap { text-align: center; margin-bottom: 30px; }
+                .prof-avatar-wrap { text-align: center; margin-bottom: 20px; }
                 .prof-avatar {
                     width: 90px; height: 90px; border-radius: 50%; margin: 0 auto 16px auto;
                     background: linear-gradient(135deg, #E8151B, #ff4b4f); color: #fff;
@@ -84,7 +84,7 @@ function UserProfileInner() {
                 .prof-logout:hover { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
 
                 /* --- MAIN CONTENT --- */
-                .prof-main { flex: 1; box-sizing: border-box; width: 100%; overflow: hidden; }
+                .prof-main { flex: 1; box-sizing: border-box; width: 100%; }
                 
                 .prof-dashboard-card {
                     background: #fff; border-radius: 20px; padding: 40px; 

@@ -115,13 +115,22 @@ export default function HotelMyBookings() {
         .hmb-btn { width: 100%; padding: 14px; background: #e8151b; color: #fff; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: 'Outfit', sans-serif; display: flex; justify-content: center; align-items: center; gap: 8px; }
         .hmb-btn:hover { background: #c8101a; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(232,21,27,0.25); }
 
+        .hmb-sticky-header {
+            position: sticky;
+            top: 75px;
+            background: #fff;
+            z-index: 10;
+            margin: -30px -30px 24px -30px;
+            padding: 30px 30px 0 30px;
+            border-bottom: 1px solid #e2e8f0;
+        }
         /* Dashboard */
-        .hmb-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
-        .hmb-header-title { font-family: 'Outfit', sans-serif; font-size: 32px; font-weight: 800; color: #1e293b; mragin: 0; }
+        .hmb-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .hmb-header-title { font-family: 'Outfit', sans-serif; font-size: 32px; font-weight: 800; color: #1e293b; margin: 0; }
         .hmb-user-badge { display: flex; align-items: center; gap: 12px; background: #f8fafc; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 600; color: #475569; border: 1px solid #e2e8f0; }
         .hmb-logout { color: #ef4444; cursor: pointer; font-weight: 700; font-size: 13px; }
         
-        .hmb-tabs { display: flex; gap: 12px; margin-bottom: 24px; overflow-x: auto; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0; }
+        .hmb-tabs { display: flex; gap: 12px; margin-bottom: 0; overflow-x: auto; padding-bottom: 8px; border-bottom: none; }
         .hmb-tab { padding: 10px 20px; border-radius: 12px 12px 0 0; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all 0.2s; border: none; background: transparent; color: #64748b; margin-bottom: -9px; border-bottom: 3px solid transparent; }
         .hmb-tab.active { color: #e8151b; border-bottom: 3px solid #e8151b; }
         .hmb-tab:not(.active):hover { color: #1e293b; }
@@ -146,6 +155,7 @@ export default function HotelMyBookings() {
         @media(max-width: 600px) {
           .hmb-header { flex-direction: column; align-items: flex-start; gap: 16px; }
           .hmb-card-top { flex-direction: column; gap: 12px; }
+          .hmb-sticky-header { margin: -30px -30px 24px -30px; padding: 30px 30px 0 30px; }
         }
       `}</style>
           
@@ -175,32 +185,34 @@ export default function HotelMyBookings() {
         </div>
       ) : (
         <>
-          <div className="hmb-header">
-            <div>
-              <h2 className="hmb-header-title">My Hotel Bookings</h2>
+          <div className="hmb-sticky-header">
+            <div className="hmb-header">
+              <div>
+                <h2 className="hmb-header-title">My Hotel Bookings</h2>
+              </div>
+              <div className="hmb-user-badge">
+                <span>{authData.email || authData.phone}</span>
+                <span style={{ color: '#cbd5e1' }}>|</span>
+                <span className="hmb-logout" onClick={handleLogout}>Logout</span>
+              </div>
             </div>
-            <div className="hmb-user-badge">
-              <span>{authData.email || authData.phone}</span>
-              <span style={{ color: '#cbd5e1' }}>|</span>
-              <span className="hmb-logout" onClick={handleLogout}>Logout</span>
-            </div>
-          </div>
 
-          <div className="hmb-tabs">
-            {[
-              { id: 'upcoming', label: 'Upcoming / Processing' },
-              { id: 'completed', label: 'Completed' },
-              { id: 'cancelled', label: 'Cancelled' },
-              { id: 'failed', label: 'Failed / Refunds' },
-            ].map(tab => (
-              <button 
-                key={tab.id} 
-                className={`hmb-tab ${activeTab === tab.id ? 'active' : ''}`}
-                onClick={() => setActiveTab(tab.id)}
-              >
-                {tab.label} ({categorizedBookings[tab.id]?.length || 0})
-              </button>
-            ))}
+            <div className="hmb-tabs">
+              {[
+                { id: 'upcoming', label: 'Upcoming / Processing' },
+                { id: 'completed', label: 'Completed' },
+                { id: 'cancelled', label: 'Cancelled' },
+                { id: 'failed', label: 'Failed / Refunds' },
+              ].map(tab => (
+                <button 
+                  key={tab.id} 
+                  className={`hmb-tab ${activeTab === tab.id ? 'active' : ''}`}
+                  onClick={() => setActiveTab(tab.id)}
+                >
+                  {tab.label} ({categorizedBookings[tab.id]?.length || 0})
+                </button>
+              ))}
+            </div>
           </div>
 
           {loading ? (

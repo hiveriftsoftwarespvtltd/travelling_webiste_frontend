@@ -84,12 +84,21 @@ function FlightMyBookings() {
     return (
         <div className="fmb-wrapper" style={{ backgroundColor: '#fff', borderRadius: '20px', boxShadow: '0 10px 40px rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.04)' }}>
             <style>{`
-                .fmb-wrapper { font-family: 'Inter', sans-serif; padding: 40px; box-sizing: border-box; width: 100%; overflow: hidden; }
+                .fmb-wrapper { font-family: 'Inter', sans-serif; padding: 40px; box-sizing: border-box; width: 100%; }
+                .fmb-sticky-header {
+                    position: sticky;
+                    top: 75px; /* stick right under main header */
+                    background: #fff;
+                    z-index: 10;
+                    margin: -40px -40px 24px -40px;
+                    padding: 40px 40px 0 40px;
+                    border-bottom: 1px solid #f1f5f9;
+                }
                 .fmb-title { font-family: 'Outfit', sans-serif; font-weight: 800; color: '#0f172a'; margin-bottom: 24px; font-size: 28px; letter-spacing: -0.5px; }
                 
                 /* --- TABS --- */
                 .fmb-tabs-container {
-                    display: flex; gap: 12px; margin-bottom: 30px; border-bottom: 2px solid #f1f5f9; padding-bottom: 12px;
+                    display: flex; gap: 12px; padding-bottom: 20px;
                     overflow-x: auto; white-space: nowrap;
                 }
                 .fmb-tabs-container::-webkit-scrollbar { display: none; }
@@ -153,24 +162,27 @@ function FlightMyBookings() {
                 }
                 @media (max-width: 576px) {
                     .fmb-wrapper { padding: 24px 20px; }
+                    .fmb-sticky-header { margin: -24px -20px 24px -20px; padding: 24px 20px 0 20px; }
                     .fmb-card-header { flex-direction: column; align-items: flex-start; gap: 12px; }
                     .fmb-city { font-size: 20px; }
                 }
             `}</style>
 
-            <h2 className="fmb-title">My Flight Bookings</h2>
-            
-            {/* TABS UI */}
-            <div className="fmb-tabs-container">
-                {['Upcoming', 'Completed', 'Cancelled', 'Processing'].map(tab => (
-                    <button
-                        key={tab}
-                        onClick={() => setActiveTab(tab)}
-                        className={`fmb-tab ${activeTab === tab ? 'active' : ''}`}
-                    >
-                        {tab}
-                    </button>
-                ))}
+            <div className="fmb-sticky-header">
+                <h2 className="fmb-title">My Flight Bookings</h2>
+                
+                {/* TABS UI */}
+                <div className="fmb-tabs-container">
+                    {['Upcoming', 'Completed', 'Cancelled', 'Processing'].map(tab => (
+                        <button
+                            key={tab}
+                            onClick={() => setActiveTab(tab)}
+                            className={`fmb-tab ${activeTab === tab ? 'active' : ''}`}
+                        >
+                            {tab}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {loading && <div className="text-center py-5"><h4 style={{color: '#64748b'}}>Loading your bookings...</h4></div>}

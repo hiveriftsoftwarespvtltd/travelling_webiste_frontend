@@ -170,7 +170,7 @@ export default function HotelResults() {
     .filter(h => {
       // Affiliate API format: h = { HotelCode, Currency, Rooms:[{TotalFare, ...}] }
       const price = h.Rooms?.[0]?.TotalFare ?? 0;
-      const starRating = h.HotelRating || h.StarRating || 0;
+      const starRating = h.HotelRating || h.StarRating || h.Rating || h.starRating || 0;
       const ratingNum = getGlobalRatingNumber(starRating);
 
       if (selectedPriceRanges.length > 0) {
@@ -209,13 +209,20 @@ export default function HotelResults() {
       }
 
       if (selectedAmenities.length > 0) {
-        // Affiliate API: amenities come in Rooms[0].Amenities array after PreBook
-        // In search response, no amenities yet — so pass all hotels through
         const amenitiesFromRooms = h.Rooms?.[0]?.Amenities || [];
-        if (amenitiesFromRooms.length > 0) {
-          const facsStr = amenitiesFromRooms.join(' ').toLowerCase();
-          const hasAllAmenities = selectedAmenities.every(a => facsStr.includes(a.toLowerCase()));
+        const hotelFacs = typeof h.HotelFacilities === 'string' ? h.HotelFacilities.toLowerCase() : '';
+        const roomFacsStr = amenitiesFromRooms.join(' ').toLowerCase();
+        
+        // If neither the hotel nor the room has facilities listed, we can't guarantee they have the amenity.
+        // Or if they do have some, we check them.
+        if (hotelFacs || roomFacsStr) {
+          const combinedFacs = `${hotelFacs} ${roomFacsStr}`;
+          const hasAllAmenities = selectedAmenities.every(a => combinedFacs.includes(a.toLowerCase()));
           if (!hasAllAmenities) return false;
+        } else {
+          // If no facility info is available at all, strict filtering means we hide it.
+          // Alternatively, we can let it pass, but typically filters are strict.
+          return false;
         }
       }
 
@@ -274,11 +281,11 @@ export default function HotelResults() {
         }
         
         .hr-content { max-width: 1200px; margin: 40px auto 0; padding: 0 20px 40px; display: grid; grid-template-columns: 280px 1fr; gap: 32px; }
-        .hr-content main { min-width: 0; overflow: hidden; }
+        .hr-content main { min-width: 0; }
         @media(max-width: 900px) { .hr-content { grid-template-columns: 1fr; margin-top: 20px; } .hr-sidebar { display: none; } .hr-sidebar.mobile-open { display: block; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9999; background: #fff; padding: 0; margin: 0; overflow-y: auto; } .hr-sidebar.mobile-open .hr-sidebar-card { border: none; box-shadow: none; border-radius: 0; margin: 0; } }
         
         /* Sidebar */
-        .hr-sidebar { position: sticky; top: 80px; height: fit-content; }
+        .hr-sidebar { position: sticky; top: 100px; height: fit-content; }
         .hr-sidebar-card { background: #fff; border-radius: 4px; overflow: visible; box-shadow: 0 1px 4px rgba(0,0,0,0.1); margin-bottom: 16px; border: 1px solid #e2e8f0; }
         .hr-sidebar-header { padding: 20px; font-weight: 800; font-size: 22px; color: #000; display: flex; justify-content: space-between; align-items: center; }
         .hr-sidebar-body { padding: 0 20px 20px; max-height: calc(100vh - 120px); overflow-y: auto; }
@@ -314,7 +321,7 @@ export default function HotelResults() {
         @media(max-width: 900px) { .hr-mobile-filter-btn { display: flex; } }
 
         /* Sort bar */
-        .hr-sortbar { display: flex; align-items: center; flex-wrap: wrap; background: #fff; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); margin-bottom: 24px; border: 1px solid #e2e8f0;}
+        .hr-sortbar { display: flex; align-items: center; flex-wrap: wrap; background: #fff; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); margin-bottom: 24px; border: 1px solid #e2e8f0; position: sticky; top: 100px; z-index: 10; }
         .hr-sort-label { font-size: 14px; font-weight: 700; color: #000; padding: 16px 20px; border-right: 1px solid #e2e8f0;}
         .hr-sort-btn { background: transparent; border: none; padding: 16px 20px; font-size: 14px; font-weight: 600; color: #4a4a4a; cursor: pointer; transition: all 0.15s; border-bottom: 3px solid transparent; flex: 1; text-align: center; }
         @media(max-width: 600px) { .hr-sort-label { width: 100%; border-right: none; border-bottom: 1px solid #e2e8f0; } .hr-sort-btn { padding: 12px 10px; font-size: 13px; } }

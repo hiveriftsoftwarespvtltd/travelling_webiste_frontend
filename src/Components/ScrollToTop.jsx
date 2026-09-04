@@ -9,8 +9,8 @@ function ScrollToTop() {
         const updateProgress = () => {
             const scroll = window.scrollY;
             const height = document.documentElement.scrollHeight - window.innerHeight;
-            const progressValue = pathLength - (scroll * pathLength) / height;
-            setProgress(progressValue);
+            const progressValue = height > 0 ? pathLength - (scroll * pathLength) / height : pathLength;
+            setProgress(isNaN(progressValue) ? pathLength : progressValue);
             setVisible(scroll > 50);
         };
 
