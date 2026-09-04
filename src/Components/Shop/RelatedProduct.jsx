@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import posts from '../data/data-shop.json';
 import ShopCardThree from './ShopCardThree';

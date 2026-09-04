@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import NiceSelect from "../Header/NiceSelect";
 
 function Booking() {

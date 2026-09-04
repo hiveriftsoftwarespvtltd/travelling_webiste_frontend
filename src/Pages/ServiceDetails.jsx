@@ -1,4 +1,4 @@
-﻿import React from 'react'
+import React from 'react'
 import HeaderOne from '../Components/Header/HeaderOne'
 import Breadcrumb from '../Components/BreadCrumb/Breadcrumb'
 import ServiceDetailsMain from '../Components/Services/ServiceDetailsMain'

@@ -1,4 +1,4 @@
-﻿import RouterPage from './Pages/RouterPage';
+import RouterPage from './Pages/RouterPage';
 import * as React from 'react'
 
 function App() {

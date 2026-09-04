@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import Posts from '../data/data-shop.json';
 import RelatedProduct from './RelatedProduct';

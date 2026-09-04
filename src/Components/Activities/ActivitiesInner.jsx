@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react'
+import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import posts from '../data/data-activities.json';
 import ActivitiesCard from './ActivitiesCard';

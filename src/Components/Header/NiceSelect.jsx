@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 
 const NiceSelect = ({ options, defaultValue }) => {
   const [selected, setSelected] = useState(defaultValue || options[0].label);

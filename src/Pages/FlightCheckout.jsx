@@ -21,6 +21,7 @@ function FlightCheckout() {
     const [selectedSSR, setSelectedSSR] = useState({});
     const [activeSsrTab, setActiveSsrTab] = useState('meals'); // 'meals', 'baggage', 'seats'
     const [activeSector, setActiveSector] = useState(0);
+    const [activeSegment, setActiveSegment] = useState(0); // For multi-segment (connecting) flights seat map
     // activePax stores the passenger's ORIGINAL index (0-based in the full passengers array)
     const [activePax, setActivePax] = useState(null); // null until passengers are loaded
     const [passengers, setPassengers] = useState([]);
@@ -379,8 +380,9 @@ function FlightCheckout() {
 
     const currentAvailableMeals    = mealDynamicNorm[activeSector] || [];
     const currentAvailableBaggage  = (baggageNorm[activeSector] || []).filter(b => b.Code !== 'NoBaggage');
-    // SeatDynamic is an array of objects per sector. Do not wrap it in another array.
-    const currentAvailableSeatsRows= ssrData?.SeatDynamic?.[activeSector]?.SegmentSeat?.[0]?.RowSeats || [];
+    // SeatDynamic is an array of objects per sector, each sector can have multiple SegmentSeats (for connecting flights).
+    const currentSegmentSeats = ssrData?.SeatDynamic?.[activeSector]?.SegmentSeat || [];
+    const currentAvailableSeatsRows = currentSegmentSeats[activeSegment]?.RowSeats || [];
     const currentSpecialServices   = specialServicesNorm[activeSector] || [];
 
     // Calculate total SSR price
@@ -1148,7 +1150,7 @@ function FlightCheckout() {
                                                 return (
                                                     <button
                                                         key={idx}
-                                                        onClick={(e) => { e.preventDefault(); setActiveSector(idx); }}
+                                                        onClick={(e) => { e.preventDefault(); setActiveSector(idx); setActiveSegment(0); }}
                                                         style={{
                                                             padding: '8px 16px', borderRadius: '8px', border: 'none',
                                                             background: activeSector === idx ? '#e8151b' : '#f1f5f9',
@@ -1336,6 +1338,30 @@ function FlightCheckout() {
                                     {/* Seats */}
                                     {activeSsrTab === 'seats' && currentAvailableSeatsRows.length > 0 && (
                                         <div style={{ marginTop: '24px' }}>
+                                            {/* Sub-tabs for each flight leg within a sector (connecting flights) */}
+                                            {currentSegmentSeats.length > 1 && (
+                                                <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                                                    {currentSegmentSeats.map((seg, sIdx) => {
+                                                        const segLabel = seg.RowSeats?.[0]?.Seats?.[0]?.SeatNo
+                                                            ? `Leg ${sIdx + 1}` : `Segment ${sIdx + 1}`;
+                                                        return (
+                                                            <button
+                                                                key={sIdx}
+                                                                type="button"
+                                                                onClick={() => setActiveSegment(sIdx)}
+                                                                style={{
+                                                                    padding: '5px 14px', borderRadius: '20px', border: 'none',
+                                                                    background: activeSegment === sIdx ? '#1a6dcf' : '#f1f5f9',
+                                                                    color: activeSegment === sIdx ? '#fff' : '#475569',
+                                                                    fontWeight: '600', fontSize: '13px', cursor: 'pointer'
+                                                                }}
+                                                            >
+                                                                {segLabel}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
                                             {/* Legend */}
                                             <div style={{ display: 'flex', gap: '16px', marginBottom: '16px', fontSize: '12px', fontWeight: '600', flexWrap: 'wrap' }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>

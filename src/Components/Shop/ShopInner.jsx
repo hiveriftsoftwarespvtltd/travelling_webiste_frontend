@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react'
+import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import ShopCard from './ShopCard';
 import posts from '../data/data-shop.json';

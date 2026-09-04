@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 
 function GetInTouch() {
     const [settings, setSettings] = useState({
-        phone: '+91-92892 28555',
+        phone: '+91-79824 26916',
         email: 'info@jiyolifetravels.com',
         address: 'Tower 21 Pocket 14, Sector 24, Rohini, Delhi, India',
         whatsappNumber: '+91-92892 28555'
@@ -182,7 +182,7 @@ function GetInTouch() {
                 .c-card.orange .c-link:hover { color: #d84518; }
                 
             `}</style>
-            
+
             <div className="container">
                 <div className="c-title-area">
                     <div className="c-subtitle">
@@ -194,7 +194,7 @@ function GetInTouch() {
                     </div>
                     <h2 className="c-title">We'd Love To Hear From You</h2>
                     <p className="c-desc">
-                        Have questions or need help planning your trip?<br/>
+                        Have questions or need help planning your trip?<br />
                         Our travel experts are just a message away.
                     </p>
                     <div className="c-title-ornament">
@@ -229,11 +229,12 @@ function GetInTouch() {
                             </div>
                             <h4>Talk To Travel Expert</h4>
                             <p>
-                                {settings.phone || '+91-92892 28555'}<br/>
-                                {settings.whatsappNumber && settings.whatsappNumber !== settings.phone ? settings.whatsappNumber : '+91-82878 69655'}
+                                +91-7982426916
+                                <br />
+                                +91-9289228555
                             </p>
                             <div className="c-divider"></div>
-                            <Link to={`tel:${settings.phone ? settings.phone.replace(/[^+\d]/g, '') : '+919289228555'}`} className="c-link">
+                            <Link to="tel:+917982426916" className="c-link">
                                 Call Us Now <i className="fa-solid fa-arrow-right"></i>
                             </Link>
                         </div>
@@ -247,7 +248,7 @@ function GetInTouch() {
                             </div>
                             <h4>Email Us Anytime</h4>
                             <p>
-                                {settings.email || 'info@jiyolifetravels.com'}<br/>
+                                {settings.email || 'info@jiyolifetravels.com'}<br />
                                 {settings.email ? `support@${settings.email.split('@')[1]}` : 'support@jiyolifetravels.com'}
                             </p>
                             <div className="c-divider"></div>
@@ -262,4 +263,4 @@ function GetInTouch() {
     )
 }
 
-export default GetInTouch
+export default GetInTouch   

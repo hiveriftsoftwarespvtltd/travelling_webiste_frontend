@@ -73,7 +73,7 @@ function FlightResultsInner() {
                     JourneyType: ss.JourneyType || 1,
                     PreferredAirlines: null,
                     Segments: ss.Segments || [{ Origin: ss.Origin || 'DEL', Destination: ss.Destination || 'BLR', FlightCabinClass: ss.FlightCabinClass || 1, PreferredDepartureTime: ss.PreferredDepartureTime || '2026-06-10T00:00:00', PreferredArrivalTime: ss.PreferredArrivalTime || '2026-06-10T00:00:00' }],
-                    Sources: null
+                    Sources: ss.Sources || null
                 };
                 let base = process.env.REACT_APP_FLIGHT_API_BASE_URL || 'http://localhost:8009/api/flight';
                 if (base.endsWith('/')) base = base.slice(0, -1);
@@ -90,12 +90,12 @@ function FlightResultsInner() {
                 if (data?.Response?.Results) {
                     const tid = data.Response.TraceId;
                     if (parseInt(payload.JourneyType) === 3) {
-                        // Multi City
+                        // Multi City — results in Results[0] only as combined itineraries
                         if (data.Response.Results[0]) {
                             setMultiCityItineraries(data.Response.Results[0].map(f => ({ ...f, TraceId: tid })));
                         }
                     } else {
-                        // One Way or Round Trip
+                        // OneWay (1), Round Trip (2), Special Return LCC (5) — Results[0]=outbound, Results[1]=return
                         if (data.Response.Results[0]) {
                             setFlights(data.Response.Results[0].map(f => ({ ...f, TraceId: tid })));
                         }
@@ -123,7 +123,8 @@ function FlightResultsInner() {
     useEffect(() => {
         const fetchCal = async () => {
             const ss = location.state || {};
-            if (parseInt(ss.JourneyType || 1) > 2) { setCalendarFares([]); return; }
+            // Skip calendar fare for MultiCity (3) and Special Return (5)
+            if (parseInt(ss.JourneyType || 1) === 3 || parseInt(ss.JourneyType || 1) === 5) { setCalendarFares([]); return; }
             try {
                 const payload = {
                     AdultCount: parseInt(ss.AdultCount ?? 1), ChildCount: 0, InfantCount: 0, DirectFlight: false, OneStopFlight: false, JourneyType: 1, PreferredAirlines: null,

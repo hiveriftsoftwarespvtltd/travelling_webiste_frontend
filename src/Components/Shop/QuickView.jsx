@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 
 const QuickView = ({ shopID, shopImage, shopTitle, shopPrice, onClose }) => {
     const [quantity, setQuantity] = useState(1);

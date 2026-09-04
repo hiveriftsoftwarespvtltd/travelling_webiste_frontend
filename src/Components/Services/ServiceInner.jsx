@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import ServiceCard from './ServiceCard';
 import posts from '../data/data-service.json';
 

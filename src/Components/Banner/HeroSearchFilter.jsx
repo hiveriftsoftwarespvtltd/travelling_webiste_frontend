@@ -1163,19 +1163,14 @@ function HeroSearchFilter() {
                               </div>
                             )}
                           </div>
-                        ) : index === multiCitySegments.length - 1 && multiCitySegments.length < 6 ? (
-                          <div style={{ flex: 1.15, display: 'flex', alignItems: 'center', paddingLeft: '12px' }}>
-                            <button className="sf-add-another-city-btn" onClick={handleAddSegment}>
-                              + Add Another City
-                            </button>
-                          </div>
-                        ) : (
-                          <div style={{ flex: 1.15, display: 'flex', alignItems: 'center' }}></div>
-                        )}
-                        
-                        {index === 0 ? (
-                          <div className="sf-search-btn-col" style={{ marginLeft: '12px', minWidth: '130px', flexShrink: 0 }}>
-                            <button className="sf-search-button" style={{ width: '100%', padding: '0', display: 'flex', justifyContent: 'center' }} onClick={() => {
+                        ) : index === multiCitySegments.length - 1 ? (
+                          <div style={{ flex: 1.15, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', paddingLeft: '12px', gap: '12px' }}>
+                            {multiCitySegments.length < 6 && (
+                              <button className="sf-add-another-city-btn" onClick={handleAddSegment} style={{ width: '100%' }}>
+                                + Add Another City
+                              </button>
+                            )}
+                            <button className="sf-search-button" style={{ width: '100%', padding: '10px', fontSize: '15px', display: 'flex', justifyContent: 'center', background: '#d81b21', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }} onClick={() => {
                               const formatLocalDate = (d) => {
                                 const offsetDate = new Date(d.getTime() - (d.getTimezoneOffset() * 60000));
                                 return offsetDate.toISOString().split('T')[0] + 'T00:00:00';
@@ -1201,17 +1196,19 @@ function HeroSearchFilter() {
                                   Segments: segments
                                 }
                               });
-                            }}>Search</button>
+                            }}>Search Flights</button>
                           </div>
                         ) : (
-                          <div className="sf-search-btn-col" style={{ marginLeft: '12px', minWidth: '130px', flexShrink: 0, display: 'flex', justifyContent: 'flex-start', alignItems: 'center' }}>
-                            {index > 1 && (
-                              <button className="sf-remove-btn" onClick={() => handleRemoveSegment(segment.id)} title="Remove flight" style={{ marginLeft: '20px' }}>
-                                <X size={16} />
-                              </button>
-                            )}
-                          </div>
+                          <div style={{ flex: 1.15, display: 'flex', alignItems: 'center' }}></div>
                         )}
+                        
+                        <div className="sf-search-btn-col" style={{ marginLeft: '12px', minWidth: '130px', flexShrink: 0, display: 'flex', justifyContent: 'flex-start', alignItems: 'center' }}>
+                          {index > 1 && (
+                            <button className="sf-remove-btn" onClick={() => handleRemoveSegment(segment.id)} title="Remove flight" style={{ marginLeft: '20px' }}>
+                              <X size={16} />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -1441,7 +1438,7 @@ function HeroSearchFilter() {
                             PreferredArrivalTime: departureStr,
                           }
                         ];
-
+ 
                         if (tripType === 'R') {
                           const validReturnDate = returnDate || new Date((departureDate || new Date()).getTime() + 2 * 24 * 60 * 60 * 1000);
                           const returnStr = formatLocalDate(validReturnDate);
@@ -1462,6 +1459,9 @@ function HeroSearchFilter() {
                             DestinationCity: toAirport.city,
                             PreferredDepartureTime: departureStr,
                             PreferredArrivalTime: departureStr,
+                            // JourneyType: 1=OneWay, 2=Round Trip (Standard - works for GDS+LCC), 3=MultiCity
+                            // Note: JourneyType 5 (Special Return) is for LCC-only Sources searches.
+                            // Since Sources: null (all), JourneyType 2 is correct — TBO returns both GDS+LCC results.
                             JourneyType: tripType === 'O' ? 1 : tripType === 'R' ? 2 : 3,
                             DirectFlight: nonStop,
                             FlightCabinClass: flightClass,
