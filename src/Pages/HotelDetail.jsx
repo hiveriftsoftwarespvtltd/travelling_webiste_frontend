@@ -267,7 +267,10 @@ export default function HotelDetail() {
                    <Building2 size={20} color="#64748b" />
                    <div>
                      <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '500' }}>Guests & Rooms</div>
-                     <div style={{ fontSize: '14px', color: '#1a1a2e', fontWeight: '600' }}>{state.rooms} Room, {state.adults} Adult{state.adults > 1 ? 's' : ''}</div>
+                     <div style={{ fontSize: '14px', color: '#1a1a2e', fontWeight: '600' }}>
+                       {state.rooms} Room{state.rooms > 1 ? 's' : ''}, {state.adults} Adult{state.adults > 1 ? 's' : ''}
+                       {state.children > 0 ? `, ${state.children} Child${state.children > 1 ? 'ren' : ''}` : ''}
+                     </div>
                    </div>
                  </div>
                  
@@ -316,14 +319,24 @@ export default function HotelDetail() {
                 const isRefundable = room.IsRefundable;
                 const pricePerNight = Math.round(room.TotalFare / nights);
                 const roomName = Array.isArray(room.Name) ? room.Name.join(', ') : (room.Name || room.RoomTypeName || 'Standard Room');
-                const inclusion = room.Inclusion || MEAL_TYPES[room.MealType] || 'Room Only';
+                const mealTypeDisplay = MEAL_TYPES[room.MealType];
+                let inclusionsDisplay = null;
+                if (room.Inclusion) {
+                  inclusionsDisplay = Array.isArray(room.Inclusion) ? room.Inclusion.join(', ') : room.Inclusion;
+                }
 
                 return (
                   <div key={idx} className="hd-room-card">
                     <div className="hd-room-info">
                       <h3>{roomName}</h3>
                       <div className="hd-room-tags">
-                        <span className="hd-tag"><Coffee size={14}/> {inclusion}</span>
+                        {mealTypeDisplay && <span className="hd-tag"><Coffee size={14}/> {mealTypeDisplay}</span>}
+                        {inclusionsDisplay && (
+                          <span className="hd-tag" style={{ background: '#e0e7ff', color: '#4338ca', border: '1px solid #c7d2fe' }}>
+                            <CheckCircle2 size={14} color="#4338ca" /> {inclusionsDisplay}
+                          </span>
+                        )}
+                        {!mealTypeDisplay && !inclusionsDisplay && <span className="hd-tag"><Coffee size={14}/> Room Only</span>}
                         {isRefundable ? (
                           <span className="hd-tag success"><ShieldCheck size={14}/> Refundable</span>
                         ) : (

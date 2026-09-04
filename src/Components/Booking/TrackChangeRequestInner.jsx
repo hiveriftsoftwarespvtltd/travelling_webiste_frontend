@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Search, Clock, CheckCircle, XCircle, DollarSign, Activity } from 'lucide-react';
 
 function TrackChangeRequestInner() {
+    const [serviceType, setServiceType] = useState('flight'); // 'flight' or 'hotel'
     const [changeRequestId, setChangeRequestId] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -19,15 +20,21 @@ function TrackChangeRequestInner() {
         setError('');
         setStatusData(null);
 
+        const API_BASE = serviceType === 'flight' 
+            ? (process.env.REACT_APP_FLIGHT_API_BASE_URL || 'http://localhost:8009/api/flight') 
+            : (process.env.REACT_APP_HOTEL_API_BASE_URL || 'http://localhost:8009/api/hotel');
+
         try {
-            const response = await axios.post(`${process.env.REACT_APP_FLIGHT_API_BASE_URL}/change-request-status`, {
+            const response = await axios.post(`${API_BASE}/change-request-status`, {
                 ChangeRequestId: parseInt(changeRequestId, 10)
             });
 
-            if (response.data && response.data.Response && response.data.Response.ResponseStatus === 1) {
-                setStatusData(response.data.Response);
+            const result = response.data?.HotelChangeRequestStatusResult || response.data?.Response;
+
+            if (result && (result.ResponseStatus === 1 || result.Status?.Code === 1)) {
+                setStatusData(result);
             } else {
-                setError('Could not fetch status. Invalid response or ID.');
+                setError(result?.Error?.ErrorMessage || result?.Status?.Description || 'Could not fetch status. Invalid response or ID.');
             }
         } catch (err) {
             setError(err.response?.data?.message || 'Error communicating with the tracking service.');
@@ -186,6 +193,10 @@ function TrackChangeRequestInner() {
                 </div>
 
                 <div className="trk-search-box">
+                    <div style={{ display: 'flex', gap: '15px', marginBottom: '25px', justifyContent: 'center' }}>
+                        <div style={{ padding: '10px 20px', borderRadius: '30px', cursor: 'pointer', fontWeight: 600, background: serviceType === 'flight' ? '#e0f2fe' : '#f1f5f9', color: serviceType === 'flight' ? '#0284c7' : '#475569', border: `2px solid ${serviceType === 'flight' ? '#7dd3fc' : 'transparent'}` }} onClick={() => { setServiceType('flight'); setStatusData(null); setError(''); }}>Flights</div>
+                        <div style={{ padding: '10px 20px', borderRadius: '30px', cursor: 'pointer', fontWeight: 600, background: serviceType === 'hotel' ? '#fef2f2' : '#f1f5f9', color: serviceType === 'hotel' ? '#e8151b' : '#475569', border: `2px solid ${serviceType === 'hotel' ? '#fca5a5' : 'transparent'}` }} onClick={() => { setServiceType('hotel'); setStatusData(null); setError(''); }}>Hotels</div>
+                    </div>
                     <form onSubmit={handleSearch}>
                         <label style={{ display: 'block', marginBottom: '10px', fontWeight: 600, color: '#111' }}>
                             Change Request ID
@@ -193,12 +204,12 @@ function TrackChangeRequestInner() {
                         <div className="trk-input-group">
                             <input 
                                 type="number" 
-                                placeholder="Enter ID (e.g. 199350)"
+                                placeholder={`Enter ${serviceType === 'flight' ? 'Flight' : 'Hotel'} Change Request ID`}
                                 value={changeRequestId}
                                 onChange={(e) => setChangeRequestId(e.target.value)}
                                 required
                             />
-                            <button type="submit" className="trk-btn" disabled={loading}>
+                            <button type="submit" className="trk-btn" disabled={loading} style={{ background: serviceType === 'hotel' ? '#e8151b' : '#0d47a1' }}>
                                 {loading ? 'Searching...' : <><Search size={20} /> Track Status</>}
                             </button>
                         </div>

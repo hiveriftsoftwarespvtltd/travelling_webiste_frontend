@@ -5,7 +5,7 @@ import FooterOne from '../Components/Footer/FooterOne';
 import {
   Building2, MapPin, Calendar, Users, Star, ShieldCheck,
   Coffee, User, Phone, Mail, ShieldAlert, Loader2, CheckCircle2,
-  ChevronDown, ChevronUp, ArrowLeft, ArrowRight, CreditCard, Info
+  ChevronDown, ChevronUp, ArrowLeft, ArrowRight, CreditCard, Info, Plane
 } from 'lucide-react';
 
 const HOTEL_API = process.env.REACT_APP_HOTEL_API_BASE_URL || 'http://localhost:8009/api/hotel';
@@ -78,8 +78,24 @@ export default function HotelCheckout() {
   const [contactEmail, setContactEmail] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [contactCountryCode, setContactCountryCode] = useState('+91');
-  const [panNumber, setPanNumber] = useState('');
+  const [passportNumber, setPassportNumber] = useState('');
+  
+  const [isCorporateBooking, setIsCorporateBooking] = useState(false);
+  const [gstName, setGstName] = useState('');
+  const [gstNumber, setGstNumber] = useState('');
+  const [gstAddress, setGstAddress] = useState('');
+  const [gstPhone, setGstPhone] = useState('');
+  const [gstEmail, setGstEmail] = useState('');
+
+  const [arrType, setArrType] = useState('0');
+  const [arrInfoId, setArrInfoId] = useState('');
+  const [arrTime, setArrTime] = useState('');
+  const [depType, setDepType] = useState('0');
+  const [depInfoId, setDepInfoId] = useState('');
+  const [depTime, setDepTime] = useState('');
+
   const [showPriceBreakdown, setShowPriceBreakdown] = useState(false);
+  const [priceChangedAlert, setPriceChangedAlert] = useState(false);
 
   // Build guest rooms from state
   const [guestRooms, setGuestRooms] = useState([]);
@@ -98,20 +114,51 @@ export default function HotelCheckout() {
     try { sessionStorage.setItem('hotelCheckoutState', JSON.stringify(s)); } catch (_) {}
     setState(s);
 
-    // Initialize guestRooms based on rooms & adults count
+    // Initialize guestRooms based on rooms, adults & children count
     const numRooms = s.rooms || 1;
-    const adultsPerRoom = Math.ceil((s.adults || 2) / numRooms);
-    const rooms = Array.from({ length: numRooms }, (_, ri) => ({
-      roomIndex: ri,
-      guests: Array.from({ length: adultsPerRoom }, (_, gi) => ({
-        guestIndex: gi,
-        Title: 'Mr',
-        FirstName: '',
-        LastName: '',
-        Age: 30,
-        IsLeadGuest: ri === 0 && gi === 0,
-      })),
-    }));
+    const totalAdults = s.adults || 2;
+    const totalChildren = s.children || 0;
+    const childrenAges = s.childrenAges || [];
+    
+    let ageIndexCounter = 0;
+    
+    const rooms = Array.from({ length: numRooms }, (_, ri) => {
+      let adultsInRoom = Math.floor(totalAdults / numRooms);
+      if (ri < totalAdults % numRooms) adultsInRoom += 1;
+      
+      let childrenInRoom = Math.floor(totalChildren / numRooms);
+      if (ri < totalChildren % numRooms) childrenInRoom += 1;
+      
+      const guests = [];
+      
+      for(let gi=0; gi<adultsInRoom; gi++) {
+         guests.push({
+            guestIndex: guests.length,
+            Title: 'Mr',
+            FirstName: '',
+            LastName: '',
+            Age: 30,
+            PaxType: 1, // Adult
+            IsLeadGuest: ri === 0 && gi === 0,
+            PAN: ''
+         });
+      }
+      
+      for(let ci=0; ci<childrenInRoom; ci++) {
+         guests.push({
+            guestIndex: guests.length,
+            Title: 'Mstr',
+            FirstName: '',
+            LastName: '',
+            Age: childrenAges[ageIndexCounter] || 5,
+            PaxType: 2, // Child
+            IsLeadGuest: false
+         });
+         ageIndexCounter++;
+      }
+      
+      return { roomIndex: ri, guests };
+    });
     setGuestRooms(rooms);
   }, [location.state, navigate]);
 
@@ -152,6 +199,7 @@ export default function HotelCheckout() {
             ...prev,
             selectedRoom: { ...prev.selectedRoom, TotalFare: newRate },
           }));
+          setPriceChangedAlert(true);
         }
       } catch (err) {
         console.error('PreBook error:', err);
@@ -195,21 +243,82 @@ export default function HotelCheckout() {
     setErrorMsg('');
 
     try {
-      // Validate
-      const isPanMandatory = preBookData?.ValidationInfo?.PanMandatory;
-      if (isPanMandatory && !panNumber.trim()) {
-        throw new Error('PAN Card Number is mandatory for this booking.');
+      // Validate Nationality for International Destinations
+      const destinationCountry = state?.hotel?.CountryCode || 'IN';
+      const guestNationality = state.GuestNationality || 'IN';
+      if (destinationCountry !== 'IN' && guestNationality !== 'IN') {
+         throw new Error('For international destinations, only Indian nationality is allowed as per TBO hotel policies.');
       }
 
+      // Validate
+      const isPanMandatory = preBookData?.ValidationInfo?.PanMandatory;
+      if (isPanMandatory) {
+        const panCountReq = preBookData?.ValidationInfo?.PanCountRequired || 1;
+        const uniquePans = new Set();
+        guestRooms.forEach(room => {
+          room.guests.forEach(g => {
+            if (g.PaxType === 1 && g.PAN?.trim()) {
+              uniquePans.add(g.PAN.trim().toUpperCase());
+            }
+          });
+        });
+        if (uniquePans.size < panCountReq) {
+          throw new Error(`This booking requires at least ${panCountReq} unique PAN card(s). Please provide them for adult guests.`);
+        }
+      }
+      const isPassportMandatory = preBookData?.ValidationInfo?.PassportMandatory;
+      if (isPassportMandatory && !passportNumber.trim()) {
+        throw new Error('Passport Number is mandatory for this international booking.');
+      }
+
+      const guestNames = new Set();
       for (const room of guestRooms) {
         for (const guest of room.guests) {
-          if (!guest.FirstName.trim() || !guest.LastName.trim()) {
+          const fName = guest.FirstName.trim();
+          const lName = guest.LastName.trim();
+          if (!fName || !lName) {
             throw new Error(`Please fill in First Name and Last Name for all guests.`);
+          }
+          
+          const fullName = `${fName} ${lName}`.toLowerCase();
+          if (preBookData?.ValidationInfo?.SamePaxNameAllowed === false) {
+             if (guestNames.has(fullName)) {
+                throw new Error(`Duplicate guest name found: ${fName} ${lName}. The hotel does not allow guests to have exactly the same name.`);
+             }
+             guestNames.add(fullName);
+          }
+
+          if (preBookData?.ValidationInfo?.SpaceAllowed === false) {
+             if (/\s/.test(fName) || /\s/.test(lName)) {
+                throw new Error(`Spaces are not allowed in passenger names for this hotel. Please correct: ${fName} ${lName}`);
+             }
+          }
+
+          if (preBookData?.ValidationInfo?.SpecialCharAllowed === false) {
+             const specialCharRegex = /[^a-zA-Z0-9\s]/;
+             if (specialCharRegex.test(fName) || specialCharRegex.test(lName)) {
+                throw new Error(`Special characters are not allowed in passenger names for this hotel. Please correct: ${fName} ${lName}`);
+             }
+          }
+
+          if (preBookData?.ValidationInfo?.CharLimit) {
+             const minL = preBookData?.ValidationInfo?.PaxNameMinLength || 1;
+             const maxL = preBookData?.ValidationInfo?.PaxNameMaxLength || 50;
+             if (fName.length < minL || fName.length > maxL || lName.length < minL || lName.length > maxL) {
+                throw new Error(`Names must be between ${minL} and ${maxL} characters long. Please correct: ${fName} ${lName}`);
+             }
           }
         }
       }
       if (!contactEmail || !contactPhone) {
         throw new Error('Please provide contact email and phone number.');
+      }
+
+      if (preBookData?.ValidationInfo?.IsPackageDetailsMandatory) {
+        if (!arrInfoId || !arrTime) throw new Error('Arrival transport details are mandatory for this package fare.');
+      }
+      if (preBookData?.ValidationInfo?.DepartureDetailsMandatory) {
+        if (!depInfoId || !depTime) throw new Error('Departure transport details are mandatory for this package fare.');
       }
       if (contactPhone.length < 10) {
         throw new Error('Please enter a valid phone number (minimum 10 digits).');
@@ -334,14 +443,22 @@ export default function HotelCheckout() {
             Title: g.Title || 'Mr',
             FirstName: g.FirstName,
             LastName: g.LastName,
-            PaxType: 1, // 1 = Adult (simplified)
+            PaxType: g.PaxType || 1, // Dynamic PaxType
             LeadPassenger: isLead,
             Age: g.Age || 30,
             Email: contactEmail,
             Phoneno: contactPhone,
             CountryCode: 'IN',
             CountryName: 'India',
-            ...(isLead && panNumber ? { PAN: panNumber } : {})
+            ...(g.PAN ? { PAN: g.PAN } : {}),
+            ...(isLead && passportNumber ? { PassportNo: passportNumber } : {}),
+            ...(isLead && isCorporateBooking && preBookData?.ValidationInfo?.GSTAllowed ? {
+              GSTCompanyAddress: gstAddress,
+              GSTCompanyContactNumber: gstPhone,
+              GSTCompanyName: gstName,
+              GSTNumber: gstNumber,
+              GSTCompanyEmail: gstEmail
+            } : {})
           };
         }),
         };
@@ -371,10 +488,26 @@ export default function HotelCheckout() {
           BookingCode: bookingCode,
           IsVoucherBooking: true,
           GuestNationality: state.GuestNationality || 'IN',
-          NetAmount: state.selectedRoom?.TotalFare || 0,
+          NetAmount: preBookData?.HotelResult?.[0]?.Rooms?.[0]?.NetAmount || state.selectedRoom?.NetAmount || state.selectedRoom?.TotalFare || 0,
           RequestedBookingMode: 5,
           NoOfRooms: state.rooms || 1,
           HotelRoomsDetails: hotelRoomsDetails,
+          IsCorporate: isCorporateBooking,
+          ...(preBookData?.ValidationInfo?.IsPackageFare ? { IsPackageFare: true } : {}),
+          ...(preBookData?.ValidationInfo?.IsPackageDetailsMandatory ? {
+            ArrivalTransport: {
+              ArrivalTransportType: parseInt(arrType),
+              TransportInfoId: arrInfoId,
+              Time: arrTime
+            }
+          } : {}),
+          ...(preBookData?.ValidationInfo?.DepartureDetailsMandatory ? {
+            DepartureTransport: {
+              DepartureTransportType: parseInt(depType),
+              TransportInfoId: depInfoId,
+              Time: depTime
+            }
+          } : {}),
           userId: loggedInUserId,
           email: loggedInEmail,
         }),
@@ -587,7 +720,10 @@ export default function HotelCheckout() {
                       </div>
                       <div>
                         <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase', marginBottom: '4px' }}>Rooms</div>
-                        <div style={{ fontWeight: '700', fontSize: '16px', color: '#1a1a2e' }}>{state.rooms} Room · {state.adults} Adult{state.adults > 1 ? 's' : ''}</div>
+                        <div style={{ fontWeight: '700', fontSize: '16px', color: '#1a1a2e' }}>
+                          {state.rooms} Room{state.rooms > 1 ? 's' : ''} · {state.adults} Adult{state.adults > 1 ? 's' : ''}
+                          {state.children > 0 ? ` · ${state.children} Child${state.children > 1 ? 'ren' : ''}` : ''}
+                        </div>
                       </div>
                     </div>
 
@@ -600,6 +736,13 @@ export default function HotelCheckout() {
                         </div>
                       )}
                     </div>
+
+                    {priceChangedAlert && (
+                      <div style={{ marginTop: '16px', padding: '12px 16px', background: '#fffbeb', border: '1px solid #f59e0b', borderRadius: '10px', color: '#b45309', fontSize: '14px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <ShieldAlert size={18} style={{ flexShrink: 0 }} />
+                        <div><strong>Price Alert:</strong> The hotel has updated its pricing since your search. Please review the updated Total Amount before confirming.</div>
+                      </div>
+                    )}
 
                     {/* Cancellation Policy */}
                     {cancelPolicy.length > 0 && (
@@ -691,18 +834,100 @@ export default function HotelCheckout() {
                         </div>
                       </InputField>
 
-                      {preBookData?.ValidationInfo?.PanMandatory && (
-                        <InputField label="PAN Card Number" id="panNumber" required>
+                      {preBookData?.ValidationInfo?.PassportMandatory && (
+                        <InputField label="Passport Number" id="passportNumber" required>
                           <input
-                            id="panNumber" type="text" className="hco-input"
-                            placeholder="ABCDE1234F" value={panNumber}
-                            onChange={e => setPanNumber(e.target.value.toUpperCase())} required
+                            id="passportNumber" type="text" className="hco-input"
+                            placeholder="A1234567" value={passportNumber}
+                            onChange={e => setPassportNumber(e.target.value.toUpperCase())} required
                             style={{ textTransform: 'uppercase' }}
                           />
                         </InputField>
                       )}
                     </div>
                   </div>
+
+                  {preBookData?.ValidationInfo?.CorporateBokingAllowed && (
+                    <div className="hco-card">
+                      <div className="hco-section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span><Building2 size={20} color="#e8151b" /> Business Travel & GST (Optional)</span>
+                        <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                          <input type="checkbox" checked={isCorporateBooking} onChange={e => setIsCorporateBooking(e.target.checked)} style={{ marginRight: '8px', transform: 'scale(1.2)' }} />
+                          <span style={{ fontSize: '14px', fontWeight: '500' }}>I have a GST number for business travel</span>
+                        </label>
+                      </div>
+                      
+                      {isCorporateBooking && preBookData?.ValidationInfo?.GSTAllowed && (
+                        <div style={{ marginTop: '16px', background: '#f8fafc', padding: '16px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                          <div style={{ fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '12px' }}>GST Details (Optional)</div>
+                          <div className="hco-contact-grid">
+                            <InputField label="Company Name" id="gstName">
+                              <input id="gstName" type="text" className="hco-input" placeholder="Company Pvt Ltd" value={gstName} onChange={e => setGstName(e.target.value)} />
+                            </InputField>
+                            <InputField label="GST Number" id="gstNumber">
+                              <input id="gstNumber" type="text" className="hco-input" placeholder="22AAAAA0000A1Z5" value={gstNumber} onChange={e => setGstNumber(e.target.value.toUpperCase())} style={{ textTransform: 'uppercase' }} />
+                            </InputField>
+                            <InputField label="Company Address" id="gstAddress">
+                              <input id="gstAddress" type="text" className="hco-input" placeholder="123 Business Park" value={gstAddress} onChange={e => setGstAddress(e.target.value)} />
+                            </InputField>
+                            <InputField label="Company Email" id="gstEmail">
+                              <input id="gstEmail" type="email" className="hco-input" placeholder="accounts@company.com" value={gstEmail} onChange={e => setGstEmail(e.target.value)} />
+                            </InputField>
+                            <InputField label="Company Phone" id="gstPhone">
+                              <input id="gstPhone" type="tel" className="hco-input" placeholder="9876543210" value={gstPhone} onChange={e => setGstPhone(e.target.value)} />
+                            </InputField>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Transport Details (Package Fare) */}
+                  {(preBookData?.ValidationInfo?.IsPackageDetailsMandatory || preBookData?.ValidationInfo?.DepartureDetailsMandatory) && (
+                    <div className="hco-card">
+                      <div className="hco-section-title"><Plane size={20} color="#e8151b" /> Travel & Transport Details</div>
+                      <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                        {preBookData?.ValidationInfo?.IsPackageDetailsMandatory && (
+                          <div style={{ marginBottom: preBookData?.ValidationInfo?.DepartureDetailsMandatory ? '20px' : '0' }}>
+                            <div style={{ fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '12px' }}>Arrival Details</div>
+                            <div className="hco-contact-grid">
+                              <InputField label="Transport Type" id="arrType">
+                                <select id="arrType" className="hco-input hco-select" value={arrType} onChange={e => setArrType(e.target.value)}>
+                                  <option value="0">Flight</option>
+                                  <option value="1">Surface / Train / Bus</option>
+                                </select>
+                              </InputField>
+                              <InputField label="Flight/Train Number" id="arrInfoId">
+                                <input id="arrInfoId" type="text" className="hco-input" placeholder="e.g. AI 101" value={arrInfoId} onChange={e => setArrInfoId(e.target.value)} />
+                              </InputField>
+                              <InputField label="Arrival Time" id="arrTime">
+                                <input id="arrTime" type="datetime-local" className="hco-input" value={arrTime} onChange={e => setArrTime(e.target.value)} />
+                              </InputField>
+                            </div>
+                          </div>
+                        )}
+                        {preBookData?.ValidationInfo?.DepartureDetailsMandatory && (
+                          <div style={{ paddingTop: preBookData?.ValidationInfo?.IsPackageDetailsMandatory ? '20px' : '0', borderTop: preBookData?.ValidationInfo?.IsPackageDetailsMandatory ? '1px solid #cbd5e1' : 'none' }}>
+                            <div style={{ fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '12px' }}>Departure Details</div>
+                            <div className="hco-contact-grid">
+                              <InputField label="Transport Type" id="depType">
+                                <select id="depType" className="hco-input hco-select" value={depType} onChange={e => setDepType(e.target.value)}>
+                                  <option value="0">Flight</option>
+                                  <option value="1">Surface / Train / Bus</option>
+                                </select>
+                              </InputField>
+                              <InputField label="Flight/Train Number" id="depInfoId">
+                                <input id="depInfoId" type="text" className="hco-input" placeholder="e.g. AI 102" value={depInfoId} onChange={e => setDepInfoId(e.target.value)} />
+                              </InputField>
+                              <InputField label="Departure Time" id="depTime">
+                                <input id="depTime" type="datetime-local" className="hco-input" value={depTime} onChange={e => setDepTime(e.target.value)} />
+                              </InputField>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Guest Details per Room */}
                   <div className="hco-card">
@@ -758,6 +983,20 @@ export default function HotelCheckout() {
                                 />
                               </InputField>
                             </div>
+                            {preBookData?.ValidationInfo?.PanMandatory && guest.PaxType === 1 && (
+                                <div style={{ marginTop: '12px', display: 'flex', gap: '15px' }}>
+                                  <div style={{ flex: 1 }}>
+                                    <InputField label="PAN Card Number" id={`pan-${ri}-${gi}`}>
+                                      <input
+                                        id={`pan-${ri}-${gi}`} type="text" className="hco-input"
+                                        placeholder="ABCDE1234F" value={guest.PAN || ''}
+                                        onChange={e => updateGuest(ri, gi, 'PAN', e.target.value.toUpperCase())}
+                                        style={{ textTransform: 'uppercase' }}
+                                      />
+                                    </InputField>
+                                  </div>
+                                </div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -798,6 +1037,18 @@ export default function HotelCheckout() {
                       <span className="hco-total-label">Total Amount</span>
                       <span className="hco-total-price">₹{grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
+
+                    {preBookData?.HotelResult?.[0]?.Rooms?.[0]?.Supplements && preBookData.HotelResult[0].Rooms[0].Supplements.length > 0 && (
+                      <div style={{ marginTop: '16px', background: '#fff1f2', border: '1px solid #fecdd3', borderRadius: '10px', padding: '12px' }}>
+                        <div style={{ fontWeight: '600', color: '#be123c', fontSize: '13px', marginBottom: '8px' }}>At-Property Charges (Not included in total)</div>
+                        {preBookData.HotelResult[0].Rooms[0].Supplements.map((sup, idx) => (
+                          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#881337', marginBottom: '4px' }}>
+                            <span>{sup.Type === 'AtProperty' ? 'Pay at Hotel' : sup.Type} - {sup.Description}</span>
+                            <span style={{ fontWeight: '600' }}>{sup.Currency} {sup.Price}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
                     {room.DayRates && room.DayRates.length > 0 && room.DayRates[0].length > 0 && (
                       <details style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', marginTop: '16px', border: '1px solid #e2e8f0', fontSize: '13px' }}>

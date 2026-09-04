@@ -373,6 +373,30 @@ function HeroSearchFilter() {
   const [checkOutDate, setCheckOutDate] = useState(new Date(new Date().getTime() + 86400000 * 2));
   const [rooms, setRooms] = useState(1);
   const [adults, setAdults] = useState(2);
+  const [children, setChildren] = useState(0);
+  const [childrenAges, setChildrenAges] = useState([]);
+
+  const handleChildrenChange = (newCount) => {
+    if (newCount < 0) return;
+    setChildren(newCount);
+    setChildrenAges(prev => {
+      const updated = [...prev];
+      if (newCount > prev.length) {
+        while (updated.length < newCount) updated.push(5); // Default age 5
+      } else if (newCount < prev.length) {
+        updated.length = newCount;
+      }
+      return updated;
+    });
+  };
+
+  const handleChildAgeChange = (index, age) => {
+    setChildrenAges(prev => {
+      const updated = [...prev];
+      updated[index] = age;
+      return updated;
+    });
+  };
 
   const dropdownRef = useRef(null);
 
@@ -1510,10 +1534,10 @@ function HeroSearchFilter() {
 
                   <div className="sf-input-col" style={{ flex: 1.2, borderRight: 'none' }} onClick={() => setActiveDropdown(activeDropdown === 'rooms' ? null : 'rooms')}>
                     <span className="sf-label-text">Room & Guest &#8964;</span>
-                    <span className="sf-value-text" style={{ fontSize: '20px' }}>{rooms} Room, {adults} Guests</span>
-                    <span className="sf-sub-text">{adults} Adults</span>
+                    <span className="sf-value-text" style={{ fontSize: '20px' }}>{rooms} Room, {adults + children} Guests</span>
+                    <span className="sf-sub-text">{adults} Adults{children > 0 ? `, ${children} Child${children > 1 ? 'ren' : ''}` : ''}</span>
                     {activeDropdown === 'rooms' && (
-                      <div className="sf-dropdown" onClick={(e) => e.stopPropagation()} style={{ padding: '15px' }}>
+                      <div className="sf-dropdown" onClick={(e) => e.stopPropagation()} style={{ padding: '15px', maxHeight: '400px', overflowY: 'auto' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
                           <div>
                             <div style={{ fontWeight: '600', fontSize: '14px', color: '#111' }}>Rooms</div>
@@ -1524,7 +1548,7 @@ function HeroSearchFilter() {
                             <button style={{ width: '30px', height: '30px', borderRadius: '50%', border: '1px solid #d81b21', background: '#ffebeb', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d81b21' }} onClick={() => setRooms(r => r + 1)}>+</button>
                           </div>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
                           <div>
                             <div style={{ fontWeight: '600', fontSize: '14px', color: '#111' }}>Adults</div>
                             <div style={{ fontSize: '11px', color: '#666' }}>12+ years</div>
@@ -1535,6 +1559,37 @@ function HeroSearchFilter() {
                             <button style={{ width: '30px', height: '30px', borderRadius: '50%', border: '1px solid #d81b21', background: '#ffebeb', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d81b21' }} onClick={() => setAdults(a => a + 1)}>+</button>
                           </div>
                         </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <div style={{ fontWeight: '600', fontSize: '14px', color: '#111' }}>Children</div>
+                            <div style={{ fontSize: '11px', color: '#666' }}>0-11 years</div>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                            <button style={{ width: '30px', height: '30px', borderRadius: '50%', border: '1px solid #ddd', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: children <= 0 ? '#ccc' : '#d81b21' }} disabled={children <= 0} onClick={() => handleChildrenChange(children - 1)}>-</button>
+                            <span style={{ fontWeight: '600', fontSize: '16px', minWidth: '15px', textAlign: 'center' }}>{children}</span>
+                            <button style={{ width: '30px', height: '30px', borderRadius: '50%', border: '1px solid #d81b21', background: '#ffebeb', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d81b21' }} onClick={() => handleChildrenChange(children + 1)}>+</button>
+                          </div>
+                        </div>
+                        
+                        {children > 0 && (
+                          <div style={{ marginTop: '15px', paddingTop: '10px', borderTop: '1px dashed #e2e8f0' }}>
+                            <div style={{ fontSize: '12px', fontWeight: '600', color: '#64748b', marginBottom: '8px' }}>Age of children</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                              {childrenAges.map((age, idx) => (
+                                <select 
+                                  key={idx} 
+                                  value={age} 
+                                  onChange={(e) => handleChildAgeChange(idx, parseInt(e.target.value))}
+                                  style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '13px' }}
+                                >
+                                  {Array.from({ length: 12 }, (_, i) => i).map(a => (
+                                    <option key={a} value={a}>{a} {a === 1 ? 'year' : 'years'}</option>
+                                  ))}
+                                </select>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         <button style={{ width: '100%', padding: '8px', marginTop: '15px', background: '#d81b21', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: '600', cursor: 'pointer' }} onClick={() => setActiveDropdown(null)}>Done</button>
                       </div>
                     )}
@@ -1559,6 +1614,8 @@ function HeroSearchFilter() {
                           checkOut: checkOutDate.toISOString().split('T')[0],
                           rooms,
                           adults,
+                          children,
+                          childrenAges,
                           GuestNationality: 'IN',
                         }
                       });

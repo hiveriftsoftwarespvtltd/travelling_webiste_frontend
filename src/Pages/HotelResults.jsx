@@ -78,11 +78,30 @@ export default function HotelResults() {
         CheckIn: state.checkIn,   // YYYY-MM-DD
         CheckOut: state.checkOut, // YYYY-MM-DD
         GuestNationality: state.GuestNationality || 'IN',
-        PaxRooms: Array.from({ length: state.rooms || 1 }, () => ({
-          Adults: Math.ceil((state.adults || 2) / (state.rooms || 1)),
-          Children: 0,
-          ChildrenAges: [],
-        })),
+        PaxRooms: Array.from({ length: state.rooms || 1 }, (_, i) => {
+          const totalRooms = state.rooms || 1;
+          
+          const totalAdults = state.adults || 2;
+          let adults = Math.floor(totalAdults / totalRooms);
+          if (i < totalAdults % totalRooms) adults += 1;
+          
+          const totalChildren = state.children || 0;
+          let childrenCount = Math.floor(totalChildren / totalRooms);
+          if (i < totalChildren % totalRooms) childrenCount += 1;
+          
+          const allAges = state.childrenAges || [];
+          let ageStartIndex = 0;
+          for(let j=0; j<i; j++) {
+             ageStartIndex += Math.floor(totalChildren / totalRooms) + (j < totalChildren % totalRooms ? 1 : 0);
+          }
+          const roomChildrenAges = allAges.slice(ageStartIndex, ageStartIndex + childrenCount);
+          
+          return {
+            Adults: adults || 1,
+            Children: childrenCount,
+            ChildrenAges: roomChildrenAges,
+          };
+        }),
         ResponseTime: 23.0,
         IsDetailedResponse: true,
         Filters: {
