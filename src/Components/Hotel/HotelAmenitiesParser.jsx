@@ -1,8 +1,8 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { 
     Wifi, Car, Coffee, Dumbbell, Waves, CheckCircle2, Tv, Wind, 
-    Bath, Briefcase, Baby, Shield, Bed, Utensils, PlaneTakeoff, 
-    Monitor, Lock, Accessibility, Flame, Bus, X, Info
+    Bath, Briefcase, Baby, Shield, Bed, Utensils,
+    Lock, Bus, X, Info
 } from 'lucide-react';
 
 const CATEGORIES = {
@@ -45,11 +45,11 @@ const getIcon = (amenity) => {
     if (lower.includes('safe') || lower.includes('security') || lower.includes('fire') || lower.includes('smoke')) return <Shield size={16} />;
     if (lower.includes('bed') || lower.includes('room') || lower.includes('mattress')) return <Bed size={16} />;
     if (lower.includes('restaurant') || lower.includes('din') || lower.includes('meal') || lower.includes('food') || lower.includes('lunch') || lower.includes('dinner')) return <Utensils size={16} />;
-    if (lower.includes('airport') || lower.includes('flight') || lower.includes('transfer') || lower.includes('shuttle')) return <PlaneTakeoff size={16} />;
-    if (lower.includes('computer') || lower.includes('monitor') || lower.includes('pc')) return <Monitor size={16} />;
+    if (lower.includes('airport') || lower.includes('flight') || lower.includes('transfer') || lower.includes('shuttle')) return <Car size={16} />;
+    if (lower.includes('computer') || lower.includes('monitor') || lower.includes('pc')) return <Tv size={16} />;
     if (lower.includes('lock') || lower.includes('key')) return <Lock size={16} />;
-    if (lower.includes('wheelchair') || lower.includes('disabled') || lower.includes('accessible') || lower.includes('elevator') || lower.includes('lift')) return <Accessibility size={16} />;
-    if (lower.includes('heat') || lower.includes('fire') || lower.includes('warm')) return <Flame size={16} />;
+    if (lower.includes('wheelchair') || lower.includes('disabled') || lower.includes('accessible') || lower.includes('elevator') || lower.includes('lift')) return <CheckCircle2 size={16} />;
+    if (lower.includes('heat') || lower.includes('fire') || lower.includes('warm')) return <CheckCircle2 size={16} />;
     if (lower.includes('bus') || lower.includes('transit')) return <Bus size={16} />;
     return <CheckCircle2 size={16} />;
 };

@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import HeaderOne from '../Components/Header/HeaderOne';
 import FooterOne from '../Components/Footer/FooterOne';
-import { MapPin, Star, Building2, ChevronRight, Info, ShieldCheck, CalendarDays, Loader2, Coffee, CheckCircle2, Ban, Check } from 'lucide-react';
+import { MapPin, Star, Building2, ChevronRight, ChevronLeft, Info, ShieldCheck, CalendarDays, Loader2, Coffee, CheckCircle2, Ban, Check } from 'lucide-react';
 import HotelAmenitiesParser from '../Components/Hotel/HotelAmenitiesParser';
 
 const HOTEL_API = process.env.REACT_APP_HOTEL_API_BASE_URL || 'http://localhost:8009/api/hotel';
@@ -29,6 +29,15 @@ export default function HotelDetail() {
   const [isLoading, setIsLoading] = useState(true);
   const [rooms, setRooms] = useState(location.state?.hotel?.Rooms || []);
   const [isRoomsLoading, setIsRoomsLoading] = useState(!location.state?.hotel?.Rooms?.length);
+  const [showAllImages, setShowAllImages] = useState(false);
+  const [showAllAttractions, setShowAllAttractions] = useState(false);
+  const similarContainerRef = useRef(null);
+
+  const scrollSimilar = (direction) => {
+    if (similarContainerRef.current) {
+      similarContainerRef.current.scrollBy({ left: direction === 'left' ? -300 : 300, behavior: 'smooth' });
+    }
+  };
 
   const hotelDynamic = state?.hotel;
 
@@ -186,6 +195,22 @@ export default function HotelDetail() {
           .hd-price-total { margin-bottom: 16px; }
           .hd-select-btn { width: 100%; } 
         }
+
+        /* Similar Properties Slider */
+        .hd-similar-title { font-family: 'Outfit', sans-serif; font-size: 28px; font-weight: 800; color: #1a1a2e; margin: 60px 0 20px; }
+        .hd-similar-container { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 20px; scroll-snap-type: x mandatory; margin-bottom: 40px; }
+        .hd-similar-container::-webkit-scrollbar { height: 6px; }
+        .hd-similar-container::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+        .hd-similar-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .hd-similar-container::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .hd-similar-card { flex: 0 0 280px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; cursor: pointer; transition: all 0.2s; scroll-snap-align: start; display: flex; flex-direction: column; }
+        .hd-similar-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,0.08); border-color: #cbd5e1; }
+        .hd-similar-img { width: 100%; height: 200px; min-height: 200px; max-height: 200px; object-fit: cover; flex-shrink: 0; }
+        .hd-similar-content { padding: 16px; text-align: center; flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
+        .hd-similar-name { font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 700; color: #1a1a2e; margin: 0 0 8px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; height: 38px; }
+        .hd-similar-price { font-family: 'Outfit', sans-serif; font-size: 20px; font-weight: 800; color: #0ea5e9; }
+        .hd-similar-btn { margin-top: 12px; width: 100%; padding: 12px 24px; background: linear-gradient(93deg,#ef6614,#d51226); color: #fff; border: none; border-radius: 6px; font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.2s; text-transform: uppercase; box-shadow: 0 4px 12px rgba(239, 102, 20, 0.2); }
+        .hd-similar-btn:hover { box-shadow: 0 6px 16px rgba(213,18,38,0.3); transform: translateY(-1px); }
       `}</style>
 
       <div className="hd-page">
@@ -226,10 +251,23 @@ export default function HotelDetail() {
             <div className="hd-gallery-box">
               <img src={images[1] && !images[1].includes('HotelNA') ? images[1] : 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=600&h=400'} alt="Hotel Sub" className="hd-gallery-img" onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=600&h=400'; }} />
             </div>
-            <div className="hd-gallery-box">
+            <div className="hd-gallery-box" style={{ position: 'relative' }}>
               <img src={images[2] && !images[2].includes('HotelNA') ? images[2] : 'https://images.unsplash.com/photo-1542314831-c6a4d14d837e?auto=format&fit=crop&w=600&h=400'} alt="Hotel Sub" className="hd-gallery-img" onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = 'https://images.unsplash.com/photo-1542314831-c6a4d14d837e?auto=format&fit=crop&w=600&h=400'; }} />
+              {images.length > 3 && (
+                <div onClick={() => setShowAllImages(!showAllImages)} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '20px', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s', opacity: 0.9 }}>
+                  {showAllImages ? 'Hide Photos' : `+${images.length - 3} Photos`}
+                </div>
+              )}
             </div>
           </div>
+          
+          {showAllImages && images.length > 3 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px', marginBottom: '40px', padding: '20px', background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+              {images.slice(3).map((img, i) => (
+                <img key={i} src={img} alt={`Gallery ${i+3}`} style={{ width: '100%', height: '150px', objectFit: 'cover', borderRadius: '8px' }} onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = 'https://images.unsplash.com/photo-1542314831-c6a4d14d837e?auto=format&fit=crop&w=600&h=400'; }} />
+              ))}
+            </div>
+          )}
 
           <div className="hd-content">
             <div className="hd-main">
@@ -251,6 +289,32 @@ export default function HotelDetail() {
                   hotelName={name}
                 />
               </div>
+
+              {hotelStatic?.Attractions && Object.keys(hotelStatic.Attractions).length > 0 && (
+                <div className="hd-section">
+                  <h2 className="hd-section-title"><MapPin size={24} color="#e8151b"/> Nearby Attractions</h2>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '16px' }}>
+                    {Object.entries(hotelStatic.Attractions)
+                      .slice(0, showAllAttractions ? undefined : 6)
+                      .map(([key, value], idx) => (
+                        <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '15px', color: '#475569' }}>
+                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#e8151b', marginTop: '8px', flexShrink: 0 }}></div>
+                          <div>{value}</div>
+                        </div>
+                    ))}
+                  </div>
+                  {Object.keys(hotelStatic.Attractions).length > 6 && (
+                    <button 
+                      onClick={() => setShowAllAttractions(!showAllAttractions)}
+                      style={{ marginTop: '20px', background: 'none', border: 'none', color: '#008cff', fontWeight: '700', fontSize: '15px', cursor: 'pointer', padding: 0, fontFamily: "'Inter', sans-serif" }}
+                      onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
+                      onMouseLeave={(e) => e.target.style.textDecoration = 'none'}
+                    >
+                      {showAllAttractions ? 'View Less' : `View All ${Object.keys(hotelStatic.Attractions).length} Attractions`}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="hd-sidebar">
@@ -295,6 +359,36 @@ export default function HotelDetail() {
                          </div>
                        )}
                        {hotelStatic.PinCode && <div><strong>Pin Code:</strong> {hotelStatic.PinCode}</div>}
+                     </div>
+                   </div>
+                 )}
+
+                 {/* Optional Hotel Upgrades & Fees */}
+                 {hotelStatic?.HotelFees?.Optional?.length > 0 && (
+                   <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #e2e8f0' }}>
+                     <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: '16px', fontWeight: '700', color: '#1a1a2e', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                       <Star size={18} color="#e8151b" /> Optional Upgrades & Services
+                     </h3>
+                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                       {hotelStatic.HotelFees.Optional.map((fee, idx) => (
+                         <div key={idx} style={{ padding: '14px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'flex-start', gap: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+                           <div style={{ background: '#f0f9ff', padding: '8px', borderRadius: '8px', color: '#0ea5e9', flexShrink: 0 }}>
+                             <Info size={16} />
+                           </div>
+                           <div>
+                             <div style={{ fontWeight: '700', color: '#1e293b', fontSize: '14px', marginBottom: '4px' }}>{fee.FeesType}</div>
+                             <div style={{ fontSize: '13px', color: '#475569', lineHeight: '1.4', textTransform: 'capitalize' }}>
+                               {fee.FeesValue && fee.Currency ? `${fee.Currency} ${fee.FeesValue}` : ''} 
+                               {fee.ChargeType && ` - ${fee.ChargeType}`}
+                             </div>
+                             {fee.FeesInclusion && (
+                               <div style={{ fontSize: '12px', color: '#64748b', marginTop: '6px', fontStyle: 'italic' }}>
+                                 {fee.FeesInclusion}
+                               </div>
+                             )}
+                           </div>
+                         </div>
+                       ))}
                      </div>
                    </div>
                  )}
@@ -410,6 +504,85 @@ export default function HotelDetail() {
               })
             )}
           </div>
+          
+          {/* Similar Properties */}
+          {state?.similarHotels && state.similarHotels.length > 0 && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '60px 0 20px' }}>
+                <h2 className="hd-similar-title" style={{ margin: 0 }}>Similar Properties</h2>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button onClick={() => scrollSimilar('left')} style={{ width: '40px', height: '40px', borderRadius: '50%', border: '1px solid #e2e8f0', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
+                    <ChevronLeft size={20} color="#1e293b" />
+                  </button>
+                  <button onClick={() => scrollSimilar('right')} style={{ width: '40px', height: '40px', borderRadius: '50%', border: '1px solid #e2e8f0', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
+                    <ChevronRight size={20} color="#1e293b" />
+                  </button>
+                </div>
+              </div>
+              <div className="hd-similar-container" ref={similarContainerRef}>
+                {state.similarHotels.map((simHotel, idx) => {
+                  const room = simHotel.Rooms?.[0];
+                  const totalFare = room?.TotalFare ?? 0;
+                  const totalTax = room?.TotalTax ?? 0;
+                  const basePrice = totalFare - totalTax;
+
+                  const basePricePerNight = nights > 0 ? Math.round(basePrice / nights) : basePrice;
+                  const taxPerNight = nights > 0 ? Math.round(totalTax / nights) : totalTax;
+                  const originalPrice = Math.round(basePricePerNight * 1.35);
+
+                  const isRefundable = room?.IsRefundable ?? false;
+                  const inclusion = room?.Inclusion || 'Room Only';
+                  const roomName = Array.isArray(room?.Name) ? room.Name[0] : (room?.Name || '');
+                  
+                  return (
+                    <div 
+                      key={idx} 
+                      className="hd-similar-card"
+                      onClick={() => {
+                        navigate('/hotel-detail', {
+                          state: {
+                            ...state,
+                            hotel: simHotel,
+                            similarHotels: state.similarHotels.filter(h => h.HotelCode !== simHotel.HotelCode)
+                          }
+                        });
+                      }}
+                    >
+                      <img 
+                        src={simHotel.HotelPicture || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=400&h=300'} 
+                        alt={simHotel.HotelName} 
+                        className="hd-similar-img"
+                        onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=400&h=300'; }}
+                      />
+                      <div className="hd-similar-content" style={{ padding: '14px', textAlign: 'left' }}>
+                        <div>
+                          <div style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}><StarRating rating={simHotel.HotelRating || simHotel.StarRating} /></div>
+                          <h3 className="hd-similar-name" style={{ height: 'auto', marginBottom: '4px', fontSize: '15px' }}>{simHotel.HotelName}</h3>
+                          <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <MapPin size={12} color="#008cff" /> {state?.cityName || simHotel.HotelCode}
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minHeight: '65px' }}>
+                            {isRefundable && <span style={{ color: '#22c55e', fontSize: '11px', fontWeight: '700' }}>✓ Free Cancellation</span>}
+                            {inclusion !== 'Room Only' && <div style={{ fontSize: '11px', color: '#4338ca', background: '#e0e7ff', padding: '3px 8px', borderRadius: '4px', display: 'inline-block', width: 'fit-content' }}>✨ {inclusion}</div>}
+                            {roomName && <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '500', lineHeight: '1.4' }}>🛏 {roomName.length > 35 ? roomName.slice(0,35) + '...' : roomName}</div>}
+                          </div>
+                        </div>
+                        
+                        <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #e2e8f0', textAlign: 'right' }}>
+                          <div style={{ fontSize: '12px', color: '#94a3b8', textDecoration: 'line-through', marginBottom: '2px' }}>₹ {originalPrice.toLocaleString()}</div>
+                          <div className="hd-similar-price">₹ {basePricePerNight.toLocaleString()}</div>
+                          <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>+ ₹ {taxPerNight.toLocaleString()} taxes & fees</div>
+                          <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '12px' }}>Per Night</div>
+                          <button className="hd-similar-btn">VIEW ROOMS</button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
         </div>
       </div>

@@ -251,6 +251,7 @@ export default function HotelResults() {
         hotel,
         nights,
         traceId,
+        similarHotels: filteredHotels.filter(h => h.HotelCode !== hotel.HotelCode).slice(0, 10)
       }
     });
   };

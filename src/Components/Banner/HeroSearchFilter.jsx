@@ -1545,7 +1545,7 @@ function HeroSearchFilter() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                             <button style={{ width: '30px', height: '30px', borderRadius: '50%', border: '1px solid #ddd', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: rooms <= 1 ? '#ccc' : '#d81b21' }} disabled={rooms <= 1} onClick={() => setRooms(r => r - 1)}>-</button>
                             <span style={{ fontWeight: '600', fontSize: '16px', minWidth: '15px', textAlign: 'center' }}>{rooms}</span>
-                            <button style={{ width: '30px', height: '30px', borderRadius: '50%', border: '1px solid #d81b21', background: '#ffebeb', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d81b21' }} onClick={() => setRooms(r => r + 1)}>+</button>
+                            <button style={{ width: '30px', height: '30px', borderRadius: '50%', border: '1px solid #d81b21', background: '#ffebeb', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: rooms >= 6 ? '#ccc' : '#d81b21' }} disabled={rooms >= 6} onClick={() => setRooms(r => r >= 6 ? 6 : r + 1)}>+</button>
                           </div>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
@@ -1556,7 +1556,7 @@ function HeroSearchFilter() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                             <button style={{ width: '30px', height: '30px', borderRadius: '50%', border: '1px solid #ddd', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: adults <= 1 ? '#ccc' : '#d81b21' }} disabled={adults <= 1} onClick={() => setAdults(a => a - 1)}>-</button>
                             <span style={{ fontWeight: '600', fontSize: '16px', minWidth: '15px', textAlign: 'center' }}>{adults}</span>
-                            <button style={{ width: '30px', height: '30px', borderRadius: '50%', border: '1px solid #d81b21', background: '#ffebeb', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d81b21' }} onClick={() => setAdults(a => a + 1)}>+</button>
+                            <button style={{ width: '30px', height: '30px', borderRadius: '50%', border: '1px solid #d81b21', background: '#ffebeb', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: adults >= rooms * 8 ? '#ccc' : '#d81b21' }} disabled={adults >= rooms * 8} onClick={() => setAdults(a => a >= rooms * 8 ? rooms * 8 : a + 1)}>+</button>
                           </div>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1567,7 +1567,7 @@ function HeroSearchFilter() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                             <button style={{ width: '30px', height: '30px', borderRadius: '50%', border: '1px solid #ddd', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: children <= 0 ? '#ccc' : '#d81b21' }} disabled={children <= 0} onClick={() => handleChildrenChange(children - 1)}>-</button>
                             <span style={{ fontWeight: '600', fontSize: '16px', minWidth: '15px', textAlign: 'center' }}>{children}</span>
-                            <button style={{ width: '30px', height: '30px', borderRadius: '50%', border: '1px solid #d81b21', background: '#ffebeb', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d81b21' }} onClick={() => handleChildrenChange(children + 1)}>+</button>
+                            <button style={{ width: '30px', height: '30px', borderRadius: '50%', border: '1px solid #d81b21', background: '#ffebeb', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: children >= rooms * 4 ? '#ccc' : '#d81b21' }} disabled={children >= rooms * 4} onClick={() => handleChildrenChange(children >= rooms * 4 ? rooms * 4 : children + 1)}>+</button>
                           </div>
                         </div>
                         
@@ -1582,7 +1582,7 @@ function HeroSearchFilter() {
                                   onChange={(e) => handleChildAgeChange(idx, parseInt(e.target.value))}
                                   style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '13px' }}
                                 >
-                                  {Array.from({ length: 12 }, (_, i) => i).map(a => (
+                                  {Array.from({ length: 18 }, (_, i) => i).map(a => (
                                     <option key={a} value={a}>{a} {a === 1 ? 'year' : 'years'}</option>
                                   ))}
                                 </select>

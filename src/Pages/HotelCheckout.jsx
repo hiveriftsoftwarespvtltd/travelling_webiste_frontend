@@ -147,7 +147,7 @@ export default function HotelCheckout() {
       for(let ci=0; ci<childrenInRoom; ci++) {
          guests.push({
             guestIndex: guests.length,
-            Title: 'Mstr',
+            Title: 'Mr',
             FirstName: '',
             LastName: '',
             Age: childrenAges[ageIndexCounter] || 5,
@@ -266,27 +266,27 @@ export default function HotelCheckout() {
           throw new Error(`This booking requires at least ${panCountReq} unique PAN card(s). Please provide them for adult guests.`);
         }
       }
-      const isPassportMandatory = preBookData?.ValidationInfo?.PassportMandatory;
-      if (isPassportMandatory && !passportNumber.trim()) {
-        throw new Error('Passport Number is mandatory for this international booking.');
-      }
-
+      
       const guestNames = new Set();
       for (const room of guestRooms) {
         for (const guest of room.guests) {
           const fName = guest.FirstName.trim();
           const lName = guest.LastName.trim();
+          
           if (!fName || !lName) {
             throw new Error(`Please fill in First Name and Last Name for all guests.`);
           }
           
-          const fullName = `${fName} ${lName}`.toLowerCase();
-          if (preBookData?.ValidationInfo?.SamePaxNameAllowed === false) {
-             if (guestNames.has(fullName)) {
-                throw new Error(`Duplicate guest name found: ${fName} ${lName}. The hotel does not allow guests to have exactly the same name.`);
-             }
-             guestNames.add(fullName);
+          if (fName.length < 2 || fName.length > 25 || lName.length < 2 || lName.length > 25) {
+            throw new Error(`First Name and Last Name must be between 2 and 25 characters for all guests.`);
           }
+
+          const fullName = `${fName} ${lName}`.toLowerCase();
+          // Globally restricting exact same names across guests as per TBO recommendations
+          if (guestNames.has(fullName)) {
+            throw new Error(`Duplicate guest name found: ${fName} ${lName}. Please ensure all guests have unique names.`);
+          }
+          guestNames.add(fullName);
 
           if (preBookData?.ValidationInfo?.SpaceAllowed === false) {
              if (/\s/.test(fName) || /\s/.test(lName)) {
@@ -294,22 +294,14 @@ export default function HotelCheckout() {
              }
           }
 
-          if (preBookData?.ValidationInfo?.SpecialCharAllowed === false) {
-             const specialCharRegex = /[^a-zA-Z0-9\s]/;
-             if (specialCharRegex.test(fName) || specialCharRegex.test(lName)) {
-                throw new Error(`Special characters are not allowed in passenger names for this hotel. Please correct: ${fName} ${lName}`);
-             }
-          }
-
-          if (preBookData?.ValidationInfo?.CharLimit) {
-             const minL = preBookData?.ValidationInfo?.PaxNameMinLength || 1;
-             const maxL = preBookData?.ValidationInfo?.PaxNameMaxLength || 50;
-             if (fName.length < minL || fName.length > maxL || lName.length < minL || lName.length > maxL) {
-                throw new Error(`Names must be between ${minL} and ${maxL} characters long. Please correct: ${fName} ${lName}`);
-             }
+          // Strict validation: no special characters or numbers allowed globally as per TBO
+          const strictNameRegex = /[^a-zA-Z\s]/;
+          if (strictNameRegex.test(fName) || strictNameRegex.test(lName)) {
+            throw new Error(`Special characters and numbers are not allowed in passenger names. Please correct: ${fName} ${lName}`);
           }
         }
       }
+      
       if (!contactEmail || !contactPhone) {
         throw new Error('Please provide contact email and phone number.');
       }
@@ -451,7 +443,6 @@ export default function HotelCheckout() {
             CountryCode: 'IN',
             CountryName: 'India',
             ...(g.PAN ? { PAN: g.PAN } : {}),
-            ...(isLead && passportNumber ? { PassportNo: passportNumber } : {}),
             ...(isLead && isCorporateBooking && preBookData?.ValidationInfo?.GSTAllowed ? {
               GSTCompanyAddress: gstAddress,
               GSTCompanyContactNumber: gstPhone,
@@ -833,17 +824,6 @@ export default function HotelCheckout() {
                           />
                         </div>
                       </InputField>
-
-                      {preBookData?.ValidationInfo?.PassportMandatory && (
-                        <InputField label="Passport Number" id="passportNumber" required>
-                          <input
-                            id="passportNumber" type="text" className="hco-input"
-                            placeholder="A1234567" value={passportNumber}
-                            onChange={e => setPassportNumber(e.target.value.toUpperCase())} required
-                            style={{ textTransform: 'uppercase' }}
-                          />
-                        </InputField>
-                      )}
                     </div>
                   </div>
 
@@ -947,11 +927,17 @@ export default function HotelCheckout() {
                           </>
                         )}
 
-                        {room.guests.map((guest, gi) => (
+                        {room.guests.map((guest, gi) => {
+                          const isAdult = guest.PaxType === 1;
+                          const label = isAdult 
+                             ? `Adult ${gi + 1}` 
+                             : `Child ${gi - room.guests.filter(g => g.PaxType === 1).length + 1}`;
+
+                          return (
                           <div key={gi}>
-                            {room.guests.length > 1 && (
+                            {(
                               <div style={{ fontSize: '13px', fontWeight: '600', color: '#94a3b8', marginBottom: '12px', marginTop: gi > 0 ? '16px' : 0 }}>
-                                Guest {gi + 1} {guest.IsLeadGuest ? '(Lead Guest)' : ''}
+                                {label} {guest.IsLeadGuest ? '(Lead Guest)' : ''}
                               </div>
                             )}
                             <div className="hco-guest-grid">
@@ -963,9 +949,8 @@ export default function HotelCheckout() {
                                   onChange={e => updateGuest(ri, gi, 'Title', e.target.value)}
                                 >
                                   <option value="Mr">Mr</option>
-                                  <option value="Mrs">Mrs</option>
+                                  {isAdult && <option value="Mrs">Mrs</option>}
                                   <option value="Ms">Ms</option>
-                                  <option value="Dr">Dr</option>
                                 </select>
                               </InputField>
                               <InputField label="First Name" id={`fname-${ri}-${gi}`} required>
@@ -998,7 +983,8 @@ export default function HotelCheckout() {
                                 </div>
                             )}
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ))}
                   </div>
