@@ -143,7 +143,7 @@ export default function HotelResults() {
       });
 
       if (apiError) {
-        setError(`API Error: ${apiError.ErrorMessage}`);
+        setError(`${apiError.ErrorMessage}`);
       } else if (results.length === 0) {
         setError(
           state.hotelCode

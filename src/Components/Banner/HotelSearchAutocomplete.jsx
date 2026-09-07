@@ -169,7 +169,10 @@ export default function HotelSearchAutocomplete({ onSelect, initialSelection }) 
                     <div key={city.CityCode} className="sf-dropdown-item" onClick={() => handleSelect(city, 'city')}>
                       <MapPin className="sf-dropdown-icon" size={16} />
                       <div className="sf-dropdown-info">
-                        <div className="sf-dropdown-city">{city.CityName}</div>
+                        <div className="sf-dropdown-city">
+                          {city.CityName}
+                          {city.CountryCode ? <span style={{ color: '#888', fontSize: '13px', marginLeft: '6px' }}>({city.CountryCode})</span> : ''}
+                        </div>
                       </div>
                     </div>
                   ))}
