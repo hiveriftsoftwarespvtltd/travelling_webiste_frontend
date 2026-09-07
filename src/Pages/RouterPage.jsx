@@ -31,6 +31,7 @@ const HotelCheckout = lazy(() => import('./HotelCheckout'));
 const HotelConfirmation = lazy(() => import('./HotelConfirmation'));
 const HotelDetail = lazy(() => import('./HotelDetail'));
 const HotelMyBookings = lazy(() => import('./HotelMyBookings'));
+const HotelBookingDetails = lazy(() => import('./HotelBookingDetails'));
 const MyBookings = lazy(() => import('./MyBookings'));
 const FlightMyBookings = lazy(() => import('./FlightMyBookings'));
 const FlightBookingDetails = lazy(() => import('./FlightBookingDetails'));
@@ -87,6 +88,7 @@ function RouterPage() {
           <Route path="/user-profile" element={<UserProfile />}>
               <Route path="flight-bookings" element={<FlightMyBookings />} />
               <Route path="hotel-bookings" element={<HotelMyBookings />} />
+              <Route path="hotel-booking/:id" element={<HotelBookingDetails />} />
               <Route path="flight-booking/:id" element={<FlightBookingDetails />} />
           </Route>
           

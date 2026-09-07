@@ -540,7 +540,7 @@ function FlightResultsInner() {
                     <div style={{ textAlign: 'center', padding: '100px 0', background: '#fff', borderRadius: '12px', border: '1px solid #e4e7ed' }}>
                         <div className="spinner-border text-danger" role="status" style={{ width: '3rem', height: '3rem' }}><span className="visually-hidden">Loading...</span></div>
                         <h5 style={{ marginTop: '16px', fontWeight: '700', color: '#1a1a2e' }}>Searching live flight fares...</h5>
-                        <p style={{ fontSize: '13px', color: '#687b8f' }}>Fetching real-time seat availability from TBO Airlines API</p>
+                        
                     </div>
                 ) : multiCitySegmentsData.length > 0 && !errorMessage ? (
                     <div className="fr-multi-city-container">

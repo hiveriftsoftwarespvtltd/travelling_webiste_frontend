@@ -501,6 +501,15 @@ export default function HotelCheckout() {
           } : {}),
           userId: loggedInUserId,
           email: loggedInEmail,
+          hotelDetails: {
+            HotelName: state.HotelName,
+            HotelCode: state.HotelCode,
+            CityName: state.city || state.CityName || 'Unknown City',
+            HotelPicture: state.HotelPicture
+          },
+          roomDetails: state.selectedRoom,
+          checkInDate: state.checkIn,
+          checkOutDate: state.checkOut,
         }),
       });
 
@@ -541,6 +550,7 @@ export default function HotelCheckout() {
           contactEmail,
           contactPhone,
           leadGuest: guestRooms[0]?.guests[0],
+          guestRooms: guestRooms,
         }
       });
     } catch (err) {

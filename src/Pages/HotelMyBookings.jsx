@@ -71,11 +71,44 @@ export default function HotelMyBookings() {
     fetchBookings(authData.email, authData.phone, null);
   };
 
+  
+  const handleCancelBooking = async (bookingId) => {
+    if (!window.confirm('Are you sure you want to cancel this booking? Cancellation charges may apply as per hotel policy.')) return;
+    
+    try {
+      setLoading(true);
+      const res = await fetch(`${HOTEL_API}/cancel-booking`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ BookingId: bookingId, RequestType: 1, Remarks: "Customer requested cancellation" })
+      });
+      
+      if (!res.ok) throw new Error('Failed to send cancellation request');
+      alert('Cancellation request sent successfully. We will process it and update the status shortly.');
+      
+      // Refresh list
+      fetchBookings(authData.email, authData.phone, authData.userId);
+    } catch (err) {
+      alert(err.message);
+      setLoading(false);
+    }
+  };
+
   const handleLogout = () => {
     sessionStorage.removeItem('hotelBookingsAuth');
     setIsAuthenticated(false);
     setBookings([]);
     setAuthData({ email: '', phone: '' });
+  };
+
+  const getDynamicStatus = (b) => {
+    if (b.status === 'COMPLETED') return 'COMPLETED';
+    if (b.status === 'CONFIRMED') {
+      let checkout = null;
+      if (b.hotelDetails?.CheckOutDate) checkout = new Date(b.hotelDetails.CheckOutDate);
+      if (checkout && new Date() > checkout) return 'COMPLETED';
+    }
+    return b.status;
   };
 
   const getStatusColor = (status) => {
@@ -85,15 +118,16 @@ export default function HotelMyBookings() {
       case 'FAILED': return { bg: '#fee2e2', color: '#b91c1c', label: 'Failed' };
       case 'REFUND_INITIATED': return { bg: '#f3e8ff', color: '#6b21a8', label: 'Refund Initiated' };
       case 'CANCELLED': return { bg: '#f1f5f9', color: '#475569', label: 'Cancelled' };
+      case 'COMPLETED': return { bg: '#e0e7ff', color: '#3730a3', label: 'Completed' };
       default: return { bg: '#f1f5f9', color: '#475569', label: status };
     }
   };
 
   const categorizedBookings = {
-    upcoming: bookings.filter(b => ['CONFIRMED', 'PENDING_CONFIRMATION'].includes(b.status)),
-    cancelled: bookings.filter(b => ['CANCELLED'].includes(b.status)),
-    failed: bookings.filter(b => ['FAILED', 'REFUND_INITIATED'].includes(b.status)),
-    completed: bookings.filter(b => ['COMPLETED'].includes(b.status)),
+    upcoming: bookings.filter(b => ['CONFIRMED', 'PENDING_CONFIRMATION'].includes(getDynamicStatus(b))),
+    cancelled: bookings.filter(b => ['CANCELLED'].includes(getDynamicStatus(b))),
+    failed: bookings.filter(b => ['FAILED', 'REFUND_INITIATED'].includes(getDynamicStatus(b))),
+    completed: bookings.filter(b => ['COMPLETED'].includes(getDynamicStatus(b))),
   };
 
   const currentList = categorizedBookings[activeTab] || [];
@@ -135,8 +169,16 @@ export default function HotelMyBookings() {
         .hmb-tab.active { color: #e8151b; border-bottom: 3px solid #e8151b; }
         .hmb-tab:not(.active):hover { color: #1e293b; }
 
-        .hmb-card { background: #fff; border-radius: 16px; padding: 24px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 16px; transition: transform 0.2s; cursor: pointer; }
-        .hmb-card:hover { transform: translateY(-4px); box-shadow: 0 10px 25px rgba(0,0,0,0.08); border-color: #cbd5e1; }
+        .hmb-card { background: #fff; border-radius: 16px; padding: 24px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 16px; transition: all 0.3s ease; }
+        .hmb-card:hover { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(0,0,0,0.1); border-color: #cbd5e1; }
+        .hmb-actions { display: flex; gap: 12px; margin-top: 8px; border-top: 1px solid #f1f5f9; padding-top: 16px; justify-content: flex-end; }
+        .hmb-btn-outline { padding: 8px 16px; border: 1px solid #e2e8f0; background: #fff; border-radius: 8px; color: #1e293b; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: 'Outfit', sans-serif; }
+        .hmb-btn-outline:hover { background: #f8fafc; border-color: #cbd5e1; }
+        .hmb-btn-danger { padding: 8px 16px; border: 1px solid #fecaca; background: #fef2f2; border-radius: 8px; color: #dc2626; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: 'Outfit', sans-serif; }
+        .hmb-btn-danger:hover { background: #fee2e2; border-color: #fca5a5; }
+        .hmb-btn-primary { padding: 8px 16px; border: none; background: #e8151b; border-radius: 8px; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: 'Outfit', sans-serif; }
+        .hmb-btn-primary:hover { background: #c8101a; box-shadow: 0 4px 12px rgba(232,21,27,0.2); }
+        
         
         .hmb-card-top { display: flex; justify-content: space-between; align-items: flex-start; }
         .hmb-hotel-name { font-family: 'Outfit', sans-serif; font-size: 20px; font-weight: 700; color: #1e293b; margin-bottom: 6px; }
@@ -202,7 +244,6 @@ export default function HotelMyBookings() {
                 { id: 'upcoming', label: 'Upcoming / Processing' },
                 { id: 'completed', label: 'Completed' },
                 { id: 'cancelled', label: 'Cancelled' },
-                { id: 'failed', label: 'Failed / Refunds' },
               ].map(tab => (
                 <button 
                   key={tab.id} 
@@ -231,13 +272,15 @@ export default function HotelMyBookings() {
           ) : (
             <div>
               {currentList.map(booking => {
-                const statusObj = getStatusColor(booking.status);
+                const dynamicStatus = getDynamicStatus(booking);
+                const statusObj = getStatusColor(dynamicStatus);
                 const hotelName = booking.hotelDetails?.HotelName || 'Unknown Hotel';
                 const city = booking.hotelDetails?.CityName || 'Unknown City';
-                const guestName = booking.guestDetails?.[0]?.HotelPassenger?.[0]?.FirstName + ' ' + (booking.guestDetails?.[0]?.HotelPassenger?.[0]?.LastName || '');
+                const passengers = booking.guestDetails?.[0]?.HotelPassenger || [];
+                const guestsList = passengers.map(p => p.FirstName + (p.LastName ? ' ' + p.LastName : '')).join(', ') || 'Unknown Guest';
                 
                 return (
-                  <div className="hmb-card" key={booking._id} onClick={() => navigate('/hotel-confirmation', { state: { bookingId: booking.bookingId, bookResult: { Status: { Description: booking.status }, ConfirmationNo: booking.confirmationNo }, hotel: booking.hotelDetails, selectedRoom: booking.roomDetails, contactEmail: authData.email, contactPhone: authData.phone, voucherData: booking.voucherDetails } })}>
+                  <div className="hmb-card" key={booking._id}>
                     <div className="hmb-card-top">
                       <div>
                         <div className="hmb-hotel-name">{hotelName}</div>
@@ -253,26 +296,38 @@ export default function HotelMyBookings() {
 
                     <div className="hmb-card-grid">
                       <div className="hmb-grid-item">
-                        <span className="hmb-grid-label">Guest</span>
-                        <span className="hmb-grid-value">{guestName}</span>
+                        <span className="hmb-grid-label">Guest(s)</span>
+                        <span className="hmb-grid-value">{guestsList}</span>
                       </div>
                       <div className="hmb-grid-item">
                         <span className="hmb-grid-label">Amount Paid</span>
-                        <span className="hmb-grid-value" style={{ color: '#166534' }}>₹{booking.fareDetails?.NetAmount?.toLocaleString() || 0}</span>
+                        <span className="hmb-grid-value" style={{ color: '#166534' }}>₹{Math.round(booking.fareDetails?.NetAmount || 0).toLocaleString()}</span>
                       </div>
                       <div className="hmb-grid-item">
-                        <span className="hmb-grid-label">Payment ID</span>
-                        <span className="hmb-grid-value" style={{ fontFamily: 'monospace' }}>{booking.razorpayPaymentId || 'N/A'}</span>
+                        <span className="hmb-grid-label">Booking Date</span>
+                        <span className="hmb-grid-value">{new Date(booking.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                       </div>
                     </div>
                     
                     {booking.status === 'REFUND_INITIATED' && (
                       <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: '8px', fontSize: '13px', color: '#475569', display: 'flex', gap: '8px', alignItems: 'center' }}>
                         <AlertCircle size={16} color="#eab308" />
-                        <span>Your refund for ₹{booking.fareDetails?.NetAmount?.toLocaleString() || 0} is being processed and will reflect in your original payment method in 5-7 working days.</span>
+                        <span>Your refund for ₹{Math.round(booking.fareDetails?.NetAmount || 0).toLocaleString()} is being processed and will reflect in your original payment method in 5-7 working days.</span>
                       </div>
                     )}
                     
+                  
+                    <div className="hmb-actions">
+                      {dynamicStatus === 'CONFIRMED' && (
+                        <button className="hmb-btn-danger" onClick={(e) => { e.stopPropagation(); handleCancelBooking(booking.bookingId); }}>
+                          Cancel Booking
+                        </button>
+                      )}
+                      <button className="hmb-btn-primary" onClick={() => navigate('/user-profile/hotel-booking/' + booking.bookingId)}>
+                        View Details
+                      </button>
+                    </div>
+
                   </div>
                 );
               })}
