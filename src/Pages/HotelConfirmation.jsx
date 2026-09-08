@@ -41,9 +41,9 @@ export default function HotelConfirmation() {
   const isConfirmed = !isFailed && !isPending;
 
   const confirmationNo = bookResult?.ConfirmationNo || voucherData?.Voucher?.ConfirmationNo || (isPending ? 'Pending from Hotel' : 'N/A');
-  const price = selectedRoom?.TotalFare || hotel?.MinPrice || 0;
-  const taxes = Math.round(price * 0.12);
-  const grandTotal = price + taxes;
+  const grandTotal = selectedRoom?.TotalFare || hotel?.MinPrice || 0;
+  const taxes = selectedRoom?.TotalTax || Math.round(grandTotal * (12 / 112));
+  const price = grandTotal - taxes;
 
   // Banner styles based on status
   let bannerBg = 'linear-gradient(135deg, #0f766e 0%, #115e59 100%)';

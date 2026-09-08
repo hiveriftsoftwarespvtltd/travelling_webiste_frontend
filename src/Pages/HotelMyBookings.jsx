@@ -10,11 +10,11 @@ export default function HotelMyBookings() {
   const navigate = useNavigate();
   const [authData, setAuthData] = useState({ email: '', phone: '' });
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  
+
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  
+
   const [activeTab, setActiveTab] = useState('upcoming');
 
   // Load auth state from localStorage or sessionStorage
@@ -27,7 +27,7 @@ export default function HotelMyBookings() {
         setIsAuthenticated(true);
         fetchBookings(parsedUser.email, parsedUser.mobile, parsedUser._id);
         return;
-      } catch(e) {}
+      } catch (e) { }
     }
 
     const saved = sessionStorage.getItem('hotelBookingsAuth');
@@ -50,7 +50,7 @@ export default function HotelMyBookings() {
 
       const res = await fetch(`${HOTEL_API}/my-bookings?${query.toString()}`);
       if (!res.ok) throw new Error('Failed to fetch bookings');
-      
+
       const data = await res.json();
       setBookings(data || []);
     } catch (err) {
@@ -71,10 +71,10 @@ export default function HotelMyBookings() {
     fetchBookings(authData.email, authData.phone, null);
   };
 
-  
+
   const handleCancelBooking = async (bookingId) => {
     if (!window.confirm('Are you sure you want to cancel this booking? Cancellation charges may apply as per hotel policy.')) return;
-    
+
     try {
       setLoading(true);
       const res = await fetch(`${HOTEL_API}/cancel-booking`, {
@@ -82,10 +82,10 @@ export default function HotelMyBookings() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ BookingId: bookingId, RequestType: 1, Remarks: "Customer requested cancellation" })
       });
-      
+
       if (!res.ok) throw new Error('Failed to send cancellation request');
       alert('Cancellation request sent successfully. We will process it and update the status shortly.');
-      
+
       // Refresh list
       fetchBookings(authData.email, authData.phone, authData.userId);
     } catch (err) {
@@ -200,7 +200,7 @@ export default function HotelMyBookings() {
           .hmb-sticky-header { margin: -30px -30px 24px -30px; padding: 30px 30px 0 30px; }
         }
       `}</style>
-          
+
       {!isAuthenticated ? (
         <div className="hmb-auth-card">
           <div className="hmb-auth-icon">
@@ -208,20 +208,20 @@ export default function HotelMyBookings() {
           </div>
           <h1 className="hmb-title">Find Your Bookings</h1>
           <p className="hmb-subtitle">Enter your email or phone number to view and manage your hotel reservations.</p>
-          
+
           {error && <div style={{ color: '#ef4444', background: '#fef2f2', padding: '12px', borderRadius: '8px', marginBottom: '20px', fontSize: '14px', fontWeight: '500' }}>{error}</div>}
-          
+
           <form onSubmit={handleLogin}>
             <div className="hmb-input-group">
               <label className="hmb-label">Email Address</label>
-              <input type="email" className="hmb-input" placeholder="e.g. you@example.com" value={authData.email} onChange={e => setAuthData({...authData, email: e.target.value})} />
+              <input type="email" className="hmb-input" placeholder="e.g. you@example.com" value={authData.email} onChange={e => setAuthData({ ...authData, email: e.target.value })} />
             </div>
             <div style={{ textAlign: 'center', margin: '10px 0', color: '#94a3b8', fontSize: '13px', fontWeight: '600' }}>OR</div>
             <div className="hmb-input-group">
               <label className="hmb-label">Phone Number</label>
-              <input type="tel" className="hmb-input" placeholder="e.g. 9876543210" value={authData.phone} onChange={e => setAuthData({...authData, phone: e.target.value})} />
+              <input type="tel" className="hmb-input" placeholder="e.g. 9876543210" value={authData.phone} onChange={e => setAuthData({ ...authData, phone: e.target.value })} />
             </div>
-            
+
             <button type="submit" className="hmb-btn">View My Bookings</button>
           </form>
         </div>
@@ -245,8 +245,8 @@ export default function HotelMyBookings() {
                 { id: 'completed', label: 'Completed' },
                 { id: 'cancelled', label: 'Cancelled' },
               ].map(tab => (
-                <button 
-                  key={tab.id} 
+                <button
+                  key={tab.id}
                   className={`hmb-tab ${activeTab === tab.id ? 'active' : ''}`}
                   onClick={() => setActiveTab(tab.id)}
                 >
@@ -278,7 +278,7 @@ export default function HotelMyBookings() {
                 const city = booking.hotelDetails?.CityName || 'Unknown City';
                 const passengers = booking.guestDetails?.[0]?.HotelPassenger || [];
                 const guestsList = passengers.map(p => p.FirstName + (p.LastName ? ' ' + p.LastName : '')).join(', ') || 'Unknown Guest';
-                
+
                 return (
                   <div className="hmb-card" key={booking._id}>
                     <div className="hmb-card-top">
@@ -301,22 +301,22 @@ export default function HotelMyBookings() {
                       </div>
                       <div className="hmb-grid-item">
                         <span className="hmb-grid-label">Amount Paid</span>
-                        <span className="hmb-grid-value" style={{ color: '#166534' }}>₹{Math.round(booking.fareDetails?.NetAmount || 0).toLocaleString()}</span>
+                        <span className="hmb-grid-value" style={{ color: '#166534' }}>₹{Math.round(booking.fareDetails?.TotalFare || booking.roomDetails?.TotalFare || booking.fareDetails?.NetAmount || 0).toLocaleString()}</span>
                       </div>
                       <div className="hmb-grid-item">
                         <span className="hmb-grid-label">Booking Date</span>
                         <span className="hmb-grid-value">{new Date(booking.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                       </div>
                     </div>
-                    
+
                     {booking.status === 'REFUND_INITIATED' && (
                       <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: '8px', fontSize: '13px', color: '#475569', display: 'flex', gap: '8px', alignItems: 'center' }}>
                         <AlertCircle size={16} color="#eab308" />
-                        <span>Your refund for ₹{Math.round(booking.fareDetails?.NetAmount || 0).toLocaleString()} is being processed and will reflect in your original payment method in 5-7 working days.</span>
+                        <span>Your refund for ₹{Math.round(booking.fareDetails?.TotalFare || booking.roomDetails?.TotalFare || booking.fareDetails?.NetAmount || 0).toLocaleString()} is being processed and will reflect in your original payment method in 5-7 working days.</span>
                       </div>
                     )}
-                    
-                  
+
+
                     <div className="hmb-actions">
                       {dynamicStatus === 'CONFIRMED' && (
                         <button className="hmb-btn-danger" onClick={(e) => { e.stopPropagation(); handleCancelBooking(booking.bookingId); }}>

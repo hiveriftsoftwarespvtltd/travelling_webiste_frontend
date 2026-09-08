@@ -16,7 +16,7 @@ export default function HotelBookingDetails() {
             try {
                 setLoading(true);
                 const response = await axios.post(`${HOTEL_API}/booking-detail`, { BookingId: id });
-                
+
                 // The TBO API wraps details in HotelBookingDetailResponse
                 const data = response.data?.GetBookingDetailResult || response.data?.HotelBookingDetailResponse || response.data;
                 if (!data || (data.ResponseStatus !== 1 && data.Status?.Code !== 1)) {
@@ -69,7 +69,7 @@ export default function HotelBookingDetails() {
             if (s === 'pending') return { label: 'Pending', color: '#92400e', bg: '#fef3c7' };
             if (s === 'vouchered') return { label: 'Vouchered', color: '#166534', bg: '#dcfce7' };
         }
-        switch(statusInt) {
+        switch (statusInt) {
             case 1: return { label: 'Vouchered', color: '#166534', bg: '#dcfce7' };
             case 2: return { label: 'Confirmed', color: '#166534', bg: '#dcfce7' };
             case 3: return { label: 'Cancelled', color: '#475569', bg: '#f1f5f9' };
@@ -134,7 +134,7 @@ export default function HotelBookingDetails() {
             <h3 style={{ fontFamily: "'Outfit', sans-serif", fontSize: '18px', color: '#1e293b', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Users size={20} color="#3b82f6" /> Guest & Room Details
             </h3>
-            
+
             {rooms.map((room, idx) => (
                 <div key={idx} style={{ padding: '16px', border: '1px solid #e2e8f0', borderRadius: '12px', marginBottom: '16px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
@@ -189,7 +189,7 @@ export default function HotelBookingDetails() {
                     </div>
                 </div>
             </div>
-            
+
             {details.QRCode && (
                 <div style={{ marginTop: '32px', textAlign: 'center', padding: '20px', borderTop: '1px solid #e2e8f0' }}>
                     <img src={details.QRCode} alt="Booking QR" style={{ width: '120px', height: '120px', borderRadius: '8px' }} />

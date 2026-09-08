@@ -47,10 +47,10 @@ function FlightMyBookings() {
         }
     };
 
-    const getStatusBadge = (status) => {
-        const isCancelled = status === 3 || status === 'Cancelled' || status === '3';
+    const getStatusBadge = (status, ticketStatus, isCancelledFlag) => {
+        const isCancelled = status === 3 || status === 'Cancelled' || status === 'CANCELLED' || status === '3' || ticketStatus === 3 || isCancelledFlag;
         const isConfirmed = status === 1 || status === 2 || status === 'Confirmed' || status === '1' || status === '2';
-        if (isConfirmed) return <span className="badge bg-success px-3 py-2" style={{borderRadius: '20px'}}><CheckCircle size={14} className="me-1"/> Confirmed</span>;
+        if (isConfirmed && !isCancelled) return <span className="badge bg-success px-3 py-2" style={{borderRadius: '20px'}}><CheckCircle size={14} className="me-1"/> Confirmed</span>;
         if (isCancelled) return <span className="badge bg-danger px-3 py-2" style={{borderRadius: '20px'}}><XCircle size={14} className="me-1"/> Cancelled</span>;
         return <span className="badge bg-warning text-dark px-3 py-2" style={{borderRadius: '20px'}}><Clock size={14} className="me-1"/> Processing</span>;
     };
@@ -62,7 +62,7 @@ function FlightMyBookings() {
         const now = new Date();
 
         // Normalize TBO Status (1/2 = Confirmed, 3 = Cancelled)
-        const isCancelled = booking.status === 3 || booking.status === 'Cancelled' || booking.status === '3';
+        const isCancelled = booking.status === 3 || booking.status === 'Cancelled' || booking.status === 'CANCELLED' || booking.status === '3' || booking.TicketStatus === 3 || booking.IsCancelled;
         const isConfirmed = booking.status === 1 || booking.status === 2 || booking.status === 'Confirmed' || booking.status === '1' || booking.status === '2';
         
         let normalizedStatus = 'Processing';
@@ -209,7 +209,7 @@ function FlightMyBookings() {
                         const date = dateRaw ? new Date(dateRaw).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A';
 
                         // Status Badge Re-design
-                        const isCancelled = booking.status === 3 || booking.status === 'Cancelled' || booking.status === '3';
+                        const isCancelled = booking.status === 3 || booking.status === 'Cancelled' || booking.status === 'CANCELLED' || booking.status === '3' || booking.TicketStatus === 3 || booking.IsCancelled;
                         const isConfirmed = booking.status === 1 || booking.status === 2 || booking.status === 'Confirmed' || booking.status === '1' || booking.status === '2';
                         let badgeClass = 'badge-soft-warning';
                         let badgeIcon = <Clock size={14} className="me-1"/>;

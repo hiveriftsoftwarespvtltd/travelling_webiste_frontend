@@ -103,9 +103,14 @@ export default function HotelDetail() {
   if (!state || !hotelDynamic) return null;
 
   const handleRoomSelect = (room) => {
+    const name = hotelStatic?.HotelName || hotelDynamic.HotelName || state.hotel?.HotelName || 'Unknown Hotel';
+    const images = hotelStatic?.Images || [hotelDynamic.HotelPicture || ''];
     navigate('/hotel-checkout', {
       state: {
         ...state,
+        HotelName: name,
+        HotelPicture: images[0],
+        HotelCode: hotelDynamic.HotelCode || state.hotel?.HotelCode,
         selectedRoom: room
       }
     });

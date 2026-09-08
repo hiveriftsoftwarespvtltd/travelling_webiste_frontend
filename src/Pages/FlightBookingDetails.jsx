@@ -11,7 +11,7 @@ export default function FlightBookingDetails() {
     const [booking, setBooking] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    
+
     const [showCancelModal, setShowCancelModal] = useState(false);
 
     const [cancellationInfo, setCancellationInfo] = useState(null);
@@ -37,7 +37,7 @@ export default function FlightBookingDetails() {
                             fetchBookingDetails();
                         }
                     }
-                } catch(e) {
+                } catch (e) {
                     console.error("Polling failed", e);
                 }
             }, 30000); // Poll every 30 seconds
@@ -57,7 +57,7 @@ export default function FlightBookingDetails() {
 
             if (response.data && response.data.Response && response.data.Response.ResponseStatus === 1) {
                 setBooking(response.data.Response.FlightItinerary);
-                
+
                 // Fetch cancellation info if any
                 try {
                     const cancelRes = await axios.post(`${process.env.REACT_APP_FLIGHT_API_BASE_URL}/cancellation-by-booking`, {
@@ -66,7 +66,7 @@ export default function FlightBookingDetails() {
                     if (cancelRes.data?.success && cancelRes.data?.data) {
                         setCancellationInfo(cancelRes.data.data);
                     }
-                } catch(e) {
+                } catch (e) {
                     console.error("Failed to fetch cancellation info", e);
                 }
 
@@ -178,12 +178,12 @@ export default function FlightBookingDetails() {
             `}</style>
 
             <div className="fbd-header">
-                <h2 className="fbd-title">Booking #{booking.BookingId}</h2>
+                <h2 className="fbd-title">Booking ID: {booking.BookingId}</h2>
                 <button onClick={() => window.history.back()} className="fbd-back-btn">
                     &larr; Back to Bookings
                 </button>
             </div>
-            
+
             <div className="fbd-grid">
                 <div className="fbd-main-col">
                     <div className="fbd-card">
@@ -209,7 +209,7 @@ export default function FlightBookingDetails() {
                                 )}
                             </div>
 
-                            {segments.map((segment, idx) => (
+                            {segments.map((segment, idx) => (   
                                 <div key={idx} className="fbd-segment">
                                     <div className="fbd-airline-row">
                                         <img
@@ -297,14 +297,14 @@ export default function FlightBookingDetails() {
                                 <span className="fbd-fare-label">Taxes & Fees</span>
                                 <span className="fbd-fare-value">₹{fare.Tax + (fare.OtherCharges || 0)}</span>
                             </div>
-                            
+
                             <div className="fbd-fare-total">
                                 <span className="fbd-fare-total-label">Total Paid</span>
                                 <span className="fbd-fare-total-value">₹{fare.OfferedFare}</span>
                             </div>
 
                             {!isCancelled && !cancellationInfo && !isPastFlight && (
-                                <button 
+                                <button
                                     className="fbd-cancel-btn"
                                     onClick={() => setShowCancelModal(true)}
                                 >
@@ -315,7 +315,7 @@ export default function FlightBookingDetails() {
                             {cancellationInfo && (
                                 <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid #e2e8f0' }}>
                                     <h5 style={{ fontFamily: "'Outfit', sans-serif", fontSize: '18px', fontWeight: 700, color: '#0f172a', marginBottom: '20px' }}>Cancellation Status</h5>
-                                    
+
                                     <div className="fbd-timeline-item">
                                         <div className="fbd-timeline-icon primary"></div>
                                         <div className="fbd-timeline-content">
@@ -348,10 +348,10 @@ export default function FlightBookingDetails() {
                                             <span className="fbd-fare-value" style={{ color: '#ef4444' }}>- ₹{cancellationInfo.cancellationCharge || 0}</span>
                                         </div>
                                         {cancellationInfo.refundDetails?.B2BAmendmentCharges ? (
-                                        <div className="fbd-fare-row">
-                                            <span className="fbd-fare-label">Agency Fees</span>
-                                            <span className="fbd-fare-value" style={{ color: '#ef4444' }}>- ₹{cancellationInfo.refundDetails.B2BAmendmentCharges}</span>
-                                        </div>
+                                            <div className="fbd-fare-row">
+                                                <span className="fbd-fare-label">Agency Fees</span>
+                                                <span className="fbd-fare-value" style={{ color: '#ef4444' }}>- ₹{cancellationInfo.refundDetails.B2BAmendmentCharges}</span>
+                                            </div>
                                         ) : null}
                                         <div className="fbd-fare-total" style={{ borderTop: '1px dashed #cbd5e1', marginTop: '8px', paddingTop: '12px', paddingBottom: '0' }}>
                                             <span className="fbd-fare-total-label" style={{ fontSize: '15px' }}>Total Refund</span>
@@ -366,9 +366,9 @@ export default function FlightBookingDetails() {
             </div>
 
             {showCancelModal && (
-                <FlightCancellationModal 
-                    booking={booking} 
-                    onClose={() => setShowCancelModal(false)} 
+                <FlightCancellationModal
+                    booking={booking}
+                    onClose={() => setShowCancelModal(false)}
                     onSuccess={() => {
                         setShowCancelModal(false);
                         fetchBookingDetails();

@@ -79,7 +79,7 @@ export default function HotelCheckout() {
   const [contactPhone, setContactPhone] = useState('');
   const [contactCountryCode, setContactCountryCode] = useState('+91');
   const [passportNumber, setPassportNumber] = useState('');
-  
+
   const [isCorporateBooking, setIsCorporateBooking] = useState(false);
   const [gstName, setGstName] = useState('');
   const [gstNumber, setGstNumber] = useState('');
@@ -107,11 +107,11 @@ export default function HotelCheckout() {
       try {
         const saved = sessionStorage.getItem('hotelCheckoutState');
         if (saved) s = JSON.parse(saved);
-      } catch (_) {}
+      } catch (_) { }
     }
     if (!s || !s.hotel) { navigate('/'); return; }
 
-    try { sessionStorage.setItem('hotelCheckoutState', JSON.stringify(s)); } catch (_) {}
+    try { sessionStorage.setItem('hotelCheckoutState', JSON.stringify(s)); } catch (_) { }
     setState(s);
 
     // Initialize guestRooms based on rooms, adults & children count
@@ -119,44 +119,44 @@ export default function HotelCheckout() {
     const totalAdults = s.adults || 2;
     const totalChildren = s.children || 0;
     const childrenAges = s.childrenAges || [];
-    
+
     let ageIndexCounter = 0;
-    
+
     const rooms = Array.from({ length: numRooms }, (_, ri) => {
       let adultsInRoom = Math.floor(totalAdults / numRooms);
       if (ri < totalAdults % numRooms) adultsInRoom += 1;
-      
+
       let childrenInRoom = Math.floor(totalChildren / numRooms);
       if (ri < totalChildren % numRooms) childrenInRoom += 1;
-      
+
       const guests = [];
-      
-      for(let gi=0; gi<adultsInRoom; gi++) {
-         guests.push({
-            guestIndex: guests.length,
-            Title: 'Mr',
-            FirstName: '',
-            LastName: '',
-            Age: 30,
-            PaxType: 1, // Adult
-            IsLeadGuest: ri === 0 && gi === 0,
-            PAN: ''
-         });
+
+      for (let gi = 0; gi < adultsInRoom; gi++) {
+        guests.push({
+          guestIndex: guests.length,
+          Title: 'Mr',
+          FirstName: '',
+          LastName: '',
+          Age: 30,
+          PaxType: 1, // Adult
+          IsLeadGuest: ri === 0 && gi === 0,
+          PAN: ''
+        });
       }
-      
-      for(let ci=0; ci<childrenInRoom; ci++) {
-         guests.push({
-            guestIndex: guests.length,
-            Title: 'Mr',
-            FirstName: '',
-            LastName: '',
-            Age: childrenAges[ageIndexCounter] || 5,
-            PaxType: 2, // Child
-            IsLeadGuest: false
-         });
-         ageIndexCounter++;
+
+      for (let ci = 0; ci < childrenInRoom; ci++) {
+        guests.push({
+          guestIndex: guests.length,
+          Title: 'Mr',
+          FirstName: '',
+          LastName: '',
+          Age: childrenAges[ageIndexCounter] || 5,
+          PaxType: 2, // Child
+          IsLeadGuest: false
+        });
+        ageIndexCounter++;
       }
-      
+
       return { roomIndex: ri, guests };
     });
     setGuestRooms(rooms);
@@ -234,8 +234,8 @@ export default function HotelCheckout() {
     e.preventDefault();
 
     if (!localStorage.getItem('token')) {
-        setShowLoginPrompt(true);
-        return;
+      setShowLoginPrompt(true);
+      return;
     }
 
     setIsBooking(true);
@@ -247,7 +247,7 @@ export default function HotelCheckout() {
       const destinationCountry = state?.hotel?.CountryCode || 'IN';
       const guestNationality = state.GuestNationality || 'IN';
       if (destinationCountry !== 'IN' && guestNationality !== 'IN') {
-         throw new Error('For international destinations, only Indian nationality is allowed as per TBO hotel policies.');
+        throw new Error('For international destinations, only Indian nationality is allowed as per TBO hotel policies.');
       }
 
       // Validate
@@ -266,17 +266,17 @@ export default function HotelCheckout() {
           throw new Error(`This booking requires at least ${panCountReq} unique PAN card(s). Please provide them for adult guests.`);
         }
       }
-      
+
       const guestNames = new Set();
       for (const room of guestRooms) {
         for (const guest of room.guests) {
           const fName = guest.FirstName.trim();
           const lName = guest.LastName.trim();
-          
+
           if (!fName || !lName) {
             throw new Error(`Please fill in First Name and Last Name for all guests.`);
           }
-          
+
           if (fName.length < 2 || fName.length > 25 || lName.length < 2 || lName.length > 25) {
             throw new Error(`First Name and Last Name must be between 2 and 25 characters for all guests.`);
           }
@@ -289,9 +289,9 @@ export default function HotelCheckout() {
           guestNames.add(fullName);
 
           if (preBookData?.ValidationInfo?.SpaceAllowed === false) {
-             if (/\s/.test(fName) || /\s/.test(lName)) {
-                throw new Error(`Spaces are not allowed in passenger names for this hotel. Please correct: ${fName} ${lName}`);
-             }
+            if (/\s/.test(fName) || /\s/.test(lName)) {
+              throw new Error(`Spaces are not allowed in passenger names for this hotel. Please correct: ${fName} ${lName}`);
+            }
           }
 
           // Strict validation: no special characters or numbers allowed globally as per TBO
@@ -301,7 +301,7 @@ export default function HotelCheckout() {
           }
         }
       }
-      
+
       if (!contactEmail || !contactPhone) {
         throw new Error('Please provide contact email and phone number.');
       }
@@ -315,7 +315,7 @@ export default function HotelCheckout() {
       if (contactPhone.length < 10) {
         throw new Error('Please enter a valid phone number (minimum 10 digits).');
       }
-      
+
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(contactEmail)) {
         throw new Error('Please enter a valid email address.');
@@ -370,9 +370,9 @@ export default function HotelCheckout() {
             display: {
               blocks: {
                 banks: { name: 'Pay via Net Banking', instruments: [{ method: 'netbanking' }] },
-                upi:   { name: 'Pay via UPI', instruments: [{ method: 'upi' }] },
-                card:  { name: 'Pay via Card', instruments: [{ method: 'card' }] },
-                wallet:{ name: 'Pay via Wallet', instruments: [{ method: 'wallet' }] },
+                upi: { name: 'Pay via UPI', instruments: [{ method: 'upi' }] },
+                card: { name: 'Pay via Card', instruments: [{ method: 'card' }] },
+                wallet: { name: 'Pay via Wallet', instruments: [{ method: 'wallet' }] },
               },
               sequence: ['block.upi', 'block.card', 'block.banks', 'block.wallet'],
               preferences: { show_default_blocks: true },
@@ -429,29 +429,29 @@ export default function HotelCheckout() {
           BedTypeCode: null,
           SmokingPreference: 0,
           Supplements: null,
-        HotelPassenger: room.guests.map((g, gi) => {
-          const isLead = ri === 0 && gi === 0;
-          return {
-            Title: g.Title || 'Mr',
-            FirstName: g.FirstName,
-            LastName: g.LastName,
-            PaxType: g.PaxType || 1, // Dynamic PaxType
-            LeadPassenger: isLead,
-            Age: g.Age || 30,
-            Email: contactEmail,
-            Phoneno: contactPhone,
-            CountryCode: 'IN',
-            CountryName: 'India',
-            ...(g.PAN ? { PAN: g.PAN } : {}),
-            ...(isLead && isCorporateBooking && preBookData?.ValidationInfo?.GSTAllowed ? {
-              GSTCompanyAddress: gstAddress,
-              GSTCompanyContactNumber: gstPhone,
-              GSTCompanyName: gstName,
-              GSTNumber: gstNumber,
-              GSTCompanyEmail: gstEmail
-            } : {})
-          };
-        }),
+          HotelPassenger: room.guests.map((g, gi) => {
+            const isLead = ri === 0 && gi === 0;
+            return {
+              Title: g.Title || 'Mr',
+              FirstName: g.FirstName,
+              LastName: g.LastName,
+              PaxType: g.PaxType || 1, // Dynamic PaxType
+              LeadPassenger: isLead,
+              Age: g.Age || 30,
+              Email: contactEmail,
+              Phoneno: contactPhone,
+              CountryCode: 'IN',
+              CountryName: 'India',
+              ...(g.PAN ? { PAN: g.PAN } : {}),
+              ...(isLead && isCorporateBooking && preBookData?.ValidationInfo?.GSTAllowed ? {
+                GSTCompanyAddress: gstAddress,
+                GSTCompanyContactNumber: gstPhone,
+                GSTCompanyName: gstName,
+                GSTNumber: gstNumber,
+                GSTCompanyEmail: gstEmail
+              } : {})
+            };
+          }),
         };
       });
 
@@ -460,13 +460,11 @@ export default function HotelCheckout() {
 
       const userDataStr = localStorage.getItem("user");
       let loggedInUserId = '';
-      let loggedInEmail = '';
       if (userDataStr) {
-          try {
-              const parsedUser = JSON.parse(userDataStr);
-              loggedInUserId = parsedUser._id || '';
-              loggedInEmail = parsedUser.email || '';
-          } catch(e) {}
+        try {
+          const parsedUser = JSON.parse(userDataStr);
+          loggedInUserId = parsedUser._id || '';
+        } catch (e) { }
       }
 
       const res = await fetch(`${HOTEL_API}/book`, {
@@ -480,6 +478,7 @@ export default function HotelCheckout() {
           IsVoucherBooking: true,
           GuestNationality: state.GuestNationality || 'IN',
           NetAmount: preBookData?.HotelResult?.[0]?.Rooms?.[0]?.NetAmount || state.selectedRoom?.NetAmount || state.selectedRoom?.TotalFare || 0,
+          TotalFare: amountToPay,
           RequestedBookingMode: 5,
           NoOfRooms: state.rooms || 1,
           HotelRoomsDetails: hotelRoomsDetails,
@@ -500,12 +499,12 @@ export default function HotelCheckout() {
             }
           } : {}),
           userId: loggedInUserId,
-          email: loggedInEmail,
+          email: contactEmail,
           hotelDetails: {
-            HotelName: state.HotelName,
-            HotelCode: state.HotelCode,
-            CityName: state.city || state.CityName || 'Unknown City',
-            HotelPicture: state.HotelPicture
+            HotelName: state.HotelName || state.hotel?.HotelName,
+            HotelCode: state.HotelCode || state.hotel?.HotelCode,
+            CityName: state.city || state.cityName || state.hotel?.CityName || 'Unknown City',
+            HotelPicture: state.HotelPicture || state.hotel?.HotelPicture
           },
           roomDetails: state.selectedRoom,
           checkInDate: state.checkIn,
@@ -591,7 +590,7 @@ export default function HotelCheckout() {
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
           <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: '28px', color: '#1a1a2e', marginBottom: '12px' }}>Confirming Your Booking</h2>
           <p style={{ color: '#64748b', fontSize: '16px', maxWidth: '450px', textAlign: 'center', lineHeight: '1.6' }}>
-            Your payment was successful. Please wait while we securely confirm your reservation with the hotel supplier.<br/><br/>
+            Your payment was successful. Please wait while we securely confirm your reservation with the hotel supplier.<br /><br />
             <strong style={{ color: '#e8151b' }}>Do not refresh the page or press back.</strong>
           </p>
         </div>
@@ -779,7 +778,7 @@ export default function HotelCheckout() {
                             </div>
                           );
                         }
-                        
+
                         // Decode HTML entities that TBO sends like &lt;ul&gt;
                         const decodeHtml = (html) => {
                           if (!html) return '';
@@ -812,8 +811,8 @@ export default function HotelCheckout() {
                       </InputField>
                       <InputField label="Phone Number" id="contactPhone" required>
                         <div style={{ display: 'flex', gap: '8px' }}>
-                          <select 
-                            className="hco-input hco-select" 
+                          <select
+                            className="hco-input hco-select"
                             style={{ width: '110px', flexShrink: 0, padding: '0 30px 0 10px' }}
                             value={contactCountryCode}
                             onChange={e => setContactCountryCode(e.target.value)}
@@ -828,8 +827,8 @@ export default function HotelCheckout() {
                             id="contactPhone" type="tel" className="hco-input"
                             placeholder="9876543210" value={contactPhone}
                             onChange={e => {
-                                const val = e.target.value.replace(/\D/g, '');
-                                if (val.length <= 15) setContactPhone(val);
+                              const val = e.target.value.replace(/\D/g, '');
+                              if (val.length <= 15) setContactPhone(val);
                             }} required
                           />
                         </div>
@@ -846,7 +845,7 @@ export default function HotelCheckout() {
                           <span style={{ fontSize: '14px', fontWeight: '500' }}>I have a GST number for business travel</span>
                         </label>
                       </div>
-                      
+
                       {isCorporateBooking && preBookData?.ValidationInfo?.GSTAllowed && (
                         <div style={{ marginTop: '16px', background: '#f8fafc', padding: '16px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
                           <div style={{ fontSize: '13px', fontWeight: '600', color: '#0f172a', marginBottom: '12px' }}>GST Details (Optional)</div>
@@ -939,46 +938,46 @@ export default function HotelCheckout() {
 
                         {room.guests.map((guest, gi) => {
                           const isAdult = guest.PaxType === 1;
-                          const label = isAdult 
-                             ? `Adult ${gi + 1}` 
-                             : `Child ${gi - room.guests.filter(g => g.PaxType === 1).length + 1}`;
+                          const label = isAdult
+                            ? `Adult ${gi + 1}`
+                            : `Child ${gi - room.guests.filter(g => g.PaxType === 1).length + 1}`;
 
                           return (
-                          <div key={gi}>
-                            {(
-                              <div style={{ fontSize: '13px', fontWeight: '600', color: '#94a3b8', marginBottom: '12px', marginTop: gi > 0 ? '16px' : 0 }}>
-                                {label} {guest.IsLeadGuest ? '(Lead Guest)' : ''}
+                            <div key={gi}>
+                              {(
+                                <div style={{ fontSize: '13px', fontWeight: '600', color: '#94a3b8', marginBottom: '12px', marginTop: gi > 0 ? '16px' : 0 }}>
+                                  {label} {guest.IsLeadGuest ? '(Lead Guest)' : ''}
+                                </div>
+                              )}
+                              <div className="hco-guest-grid">
+                                <InputField label="Title" id={`title-${ri}-${gi}`} required>
+                                  <select
+                                    id={`title-${ri}-${gi}`}
+                                    className="hco-input hco-select"
+                                    value={guest.Title}
+                                    onChange={e => updateGuest(ri, gi, 'Title', e.target.value)}
+                                  >
+                                    <option value="Mr">Mr</option>
+                                    {isAdult && <option value="Mrs">Mrs</option>}
+                                    <option value="Ms">Ms</option>
+                                  </select>
+                                </InputField>
+                                <InputField label="First Name" id={`fname-${ri}-${gi}`} required>
+                                  <input
+                                    id={`fname-${ri}-${gi}`} type="text" className="hco-input"
+                                    placeholder="First name" value={guest.FirstName}
+                                    onChange={e => updateGuest(ri, gi, 'FirstName', e.target.value)} required
+                                  />
+                                </InputField>
+                                <InputField label="Last Name" id={`lname-${ri}-${gi}`} required>
+                                  <input
+                                    id={`lname-${ri}-${gi}`} type="text" className="hco-input"
+                                    placeholder="Last name" value={guest.LastName}
+                                    onChange={e => updateGuest(ri, gi, 'LastName', e.target.value)} required
+                                  />
+                                </InputField>
                               </div>
-                            )}
-                            <div className="hco-guest-grid">
-                              <InputField label="Title" id={`title-${ri}-${gi}`} required>
-                                <select
-                                  id={`title-${ri}-${gi}`}
-                                  className="hco-input hco-select"
-                                  value={guest.Title}
-                                  onChange={e => updateGuest(ri, gi, 'Title', e.target.value)}
-                                >
-                                  <option value="Mr">Mr</option>
-                                  {isAdult && <option value="Mrs">Mrs</option>}
-                                  <option value="Ms">Ms</option>
-                                </select>
-                              </InputField>
-                              <InputField label="First Name" id={`fname-${ri}-${gi}`} required>
-                                <input
-                                  id={`fname-${ri}-${gi}`} type="text" className="hco-input"
-                                  placeholder="First name" value={guest.FirstName}
-                                  onChange={e => updateGuest(ri, gi, 'FirstName', e.target.value)} required
-                                />
-                              </InputField>
-                              <InputField label="Last Name" id={`lname-${ri}-${gi}`} required>
-                                <input
-                                  id={`lname-${ri}-${gi}`} type="text" className="hco-input"
-                                  placeholder="Last name" value={guest.LastName}
-                                  onChange={e => updateGuest(ri, gi, 'LastName', e.target.value)} required
-                                />
-                              </InputField>
-                            </div>
-                            {preBookData?.ValidationInfo?.PanMandatory && guest.PaxType === 1 && (
+                              {preBookData?.ValidationInfo?.PanMandatory && guest.PaxType === 1 && (
                                 <div style={{ marginTop: '12px', display: 'flex', gap: '15px' }}>
                                   <div style={{ flex: 1 }}>
                                     <InputField label="PAN Card Number" id={`pan-${ri}-${gi}`}>
@@ -991,8 +990,8 @@ export default function HotelCheckout() {
                                     </InputField>
                                   </div>
                                 </div>
-                            )}
-                          </div>
+                              )}
+                            </div>
                           );
                         })}
                       </div>
@@ -1023,12 +1022,12 @@ export default function HotelCheckout() {
                       <span className="hco-price-label">{state.rooms} Room{state.rooms > 1 ? 's' : ''} × {nights} Night{nights > 1 ? 's' : ''} (Base Price)</span>
                       <span className="hco-price-value">₹{(grandTotal - taxes).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
-                    
+
                     <div className="hco-price-row">
                       <span className="hco-price-label">Taxes & Fees</span>
                       <span className="hco-price-value">₹{taxes.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
-                    
+
                     <div className="hco-total-row">
                       <span className="hco-total-label">Total Amount</span>
                       <span className="hco-total-price">₹{grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
@@ -1070,9 +1069,9 @@ export default function HotelCheckout() {
                       {isBooking ? (
                         <><div style={{ width: '20px', height: '20px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }}></div> {
                           paymentStatus === 'paying' ? 'Opening Payment...'
-                          : paymentStatus === 'verifying' ? 'Verifying Payment...'
-                          : paymentStatus === 'booking' ? 'Confirming Booking...'
-                          : 'Processing...'
+                            : paymentStatus === 'verifying' ? 'Verifying Payment...'
+                              : paymentStatus === 'booking' ? 'Confirming Booking...'
+                                : 'Processing...'
                         }</>
                       ) : (
                         <><CreditCard size={18} /> Confirm & Pay · ₹{grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</>
@@ -1083,15 +1082,15 @@ export default function HotelCheckout() {
                       <ShieldCheck size={14} color="#10b981" /> 100% Safe &amp; Secure Booking
                     </div>
                     <div style={{ marginTop: '12px', textAlign: 'center' }}>
-                        <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '6px' }}>Accepted Payment Methods</div>
-                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                            {['UPI', 'Cards', 'Net Banking', 'Wallets', 'QR'].map(m => (
-                                <span key={m} style={{ fontSize: '10px', fontWeight: '600', color: '#475569', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '4px', padding: '2px 7px' }}>{m}</span>
-                            ))}
-                        </div>
-                        <div style={{ marginTop: '8px', fontSize: '10px', color: '#b0bec5', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                            Powered by <span style={{ fontWeight: '800', color: '#528FF0' }}>Razorpay</span>
-                        </div>
+                      <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '6px' }}>Accepted Payment Methods</div>
+                      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        {['UPI', 'Cards', 'Net Banking', 'Wallets', 'QR'].map(m => (
+                          <span key={m} style={{ fontSize: '10px', fontWeight: '600', color: '#475569', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '4px', padding: '2px 7px' }}>{m}</span>
+                        ))}
+                      </div>
+                      <div style={{ marginTop: '8px', fontSize: '10px', color: '#b0bec5', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                        Powered by <span style={{ fontWeight: '800', color: '#528FF0' }}>Razorpay</span>
+                      </div>
                     </div>
 
                     <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #f1f5f9' }}>
@@ -1111,22 +1110,22 @@ export default function HotelCheckout() {
       </div>
       {showLoginPrompt && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999 }}>
-            <div style={{ background: '#fff', padding: '32px', borderRadius: '16px', textAlign: 'center', maxWidth: '420px', width: '90%', boxShadow: '0 20px 40px rgba(0,0,0,0.2)', fontFamily: "'Inter', sans-serif" }}>
-                <div style={{ width: '60px', height: '60px', background: '#fef2f2', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-                    <i className="fa-solid fa-lock" style={{ fontSize: '24px', color: '#e8151b' }}></i>
-                </div>
-                <h3 style={{ marginTop: 0, color: '#1a1a2e', fontSize: '22px', fontWeight: '700', marginBottom: '12px' }}>Login Required</h3>
-                <p style={{ color: '#64748b', fontSize: '15px', lineHeight: '1.6', marginBottom: '24px' }}>
-                    Please login or create an account to securely continue with your booking.
-                </p>
-                <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-                    <button type="button" onClick={() => setShowLoginPrompt(false)} style={{ flex: 1, padding: '12px 0', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '15px', transition: 'background 0.2s' }} onMouseEnter={e => e.target.style.background = '#e2e8f0'} onMouseLeave={e => e.target.style.background = '#f1f5f9'}>Cancel</button>
-                    <button type="button" onClick={() => {
-                        setShowLoginPrompt(false);
-                        window.dispatchEvent(new Event('openLoginModal'));
-                    }} style={{ flex: 1, padding: '12px 0', background: '#e8151b', color: '#fff', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '15px', transition: 'background 0.2s' }} onMouseEnter={e => e.target.style.background = '#d01217'} onMouseLeave={e => e.target.style.background = '#e8151b'}>Login / Sign Up</button>
-                </div>
+          <div style={{ background: '#fff', padding: '32px', borderRadius: '16px', textAlign: 'center', maxWidth: '420px', width: '90%', boxShadow: '0 20px 40px rgba(0,0,0,0.2)', fontFamily: "'Inter', sans-serif" }}>
+            <div style={{ width: '60px', height: '60px', background: '#fef2f2', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+              <i className="fa-solid fa-lock" style={{ fontSize: '24px', color: '#e8151b' }}></i>
             </div>
+            <h3 style={{ marginTop: 0, color: '#1a1a2e', fontSize: '22px', fontWeight: '700', marginBottom: '12px' }}>Login Required</h3>
+            <p style={{ color: '#64748b', fontSize: '15px', lineHeight: '1.6', marginBottom: '24px' }}>
+              Please login or create an account to securely continue with your booking.
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button type="button" onClick={() => setShowLoginPrompt(false)} style={{ flex: 1, padding: '12px 0', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '15px', transition: 'background 0.2s' }} onMouseEnter={e => e.target.style.background = '#e2e8f0'} onMouseLeave={e => e.target.style.background = '#f1f5f9'}>Cancel</button>
+              <button type="button" onClick={() => {
+                setShowLoginPrompt(false);
+                window.dispatchEvent(new Event('openLoginModal'));
+              }} style={{ flex: 1, padding: '12px 0', background: '#e8151b', color: '#fff', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '15px', transition: 'background 0.2s' }} onMouseEnter={e => e.target.style.background = '#d01217'} onMouseLeave={e => e.target.style.background = '#e8151b'}>Login / Sign Up</button>
+            </div>
+          </div>
         </div>
       )}
 
