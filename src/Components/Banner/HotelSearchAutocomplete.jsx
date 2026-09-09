@@ -1,242 +1,246 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MapPin, Building2, Clock, Loader2, X } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import axios from 'axios';
 
 const HOTEL_API = process.env.REACT_APP_HOTEL_API_BASE_URL || 'http://localhost:8009/api/hotel';
 
-// Basic debounce hook
-function useDebounce(value, delay) {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-  useEffect(() => {
-    const handler = setTimeout(() => { setDebouncedValue(value); }, delay);
-    return () => clearTimeout(handler);
-  }, [value, delay]);
-  return debouncedValue;
-}
-
 export default function HotelSearchAutocomplete({ onSelect, initialSelection }) {
-  const [query, setQuery] = useState('');
-  const debouncedQuery = useDebounce(query, 300);
+  const [countries, setCountries] = useState([]);
+  const [cities, setCities] = useState([]);
   
-  const [results, setResults] = useState({ cities: [], hotels: [] });
+  const [selectedCountryCode, setSelectedCountryCode] = useState('');
+  const [countrySearchText, setCountrySearchText] = useState('');
+  const [isCountryOpen, setIsCountryOpen] = useState(false);
+  
+  const [selectedCityCode, setSelectedCityCode] = useState('');
+  const [citySearchText, setCitySearchText] = useState('');
+  const [isCityOpen, setIsCityOpen] = useState(false);
+  
   const [isLoading, setIsLoading] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
-  const [recentSearches, setRecentSearches] = useState([]);
+  const [isCityLoading, setIsCityLoading] = useState(false);
+  const [showCountryWarning, setShowCountryWarning] = useState(false);
   
   const wrapperRef = useRef(null);
 
-  // Load recent searches from localStorage
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('hotel_recent_searches');
-      if (stored) setRecentSearches(JSON.parse(stored));
-    } catch (e) {}
-  }, []);
-
-  // Handle outside click
+  // Close dropdowns on outside click
   useEffect(() => {
     function handleClickOutside(event) {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
-        setIsOpen(false);
+        setIsCountryOpen(false);
+        setIsCityOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [wrapperRef]);
+  }, []);
 
-  // Set initial value if provided
+  // Fetch Countries on mount
   useEffect(() => {
-    if (initialSelection && !query) {
-      if (initialSelection.type === 'city') {
-        setQuery(initialSelection.name);
-      } else if (initialSelection.type === 'hotel') {
-        setQuery(initialSelection.name);
-      } else {
-        setQuery(initialSelection.city || '');
-      }
-    }
-  }, [initialSelection]);
-
-  // Fetch suggestions
-  useEffect(() => {
-    if (!debouncedQuery.trim()) {
-      setResults({ cities: [], hotels: [] });
-      setIsLoading(false);
-      return;
-    }
-
-    const fetchSuggestions = async () => {
+    const fetchCountries = async () => {
       setIsLoading(true);
       try {
-        const res = await fetch(`${HOTEL_API}/search-suggestions?q=${encodeURIComponent(debouncedQuery)}`);
-        const data = await res.json();
-        setResults({ cities: data.cities || [], hotels: data.hotels || [] });
+        const response = await axios.get(`${HOTEL_API}/countries`);
+        if (response.data?.CountryList) {
+          setCountries(response.data.CountryList);
+        }
       } catch (err) {
-        console.error("Failed to fetch suggestions:", err);
+        console.error("Failed to fetch countries:", err);
       } finally {
         setIsLoading(false);
       }
     };
+    fetchCountries();
+  }, []);
 
-    fetchSuggestions();
-  }, [debouncedQuery]);
+  // Fetch Cities when Country changes
+  useEffect(() => {
+    if (!selectedCountryCode) {
+      setCities([]);
+      return;
+    }
+    const fetchCities = async () => {
+      setIsCityLoading(true);
+      try {
+        const response = await axios.post(`${HOTEL_API}/cities`, { CountryCode: selectedCountryCode });
+        if (response.data?.CityList) {
+          setCities(response.data.CityList);
+        }
+      } catch (err) {
+        console.error("Failed to fetch cities:", err);
+      } finally {
+        setIsCityLoading(false);
+      }
+    };
+    fetchCities();
+  }, [selectedCountryCode]);
 
-  const handleSelect = (item, type) => {
-    // Add to recent searches
-    const newItem = { ...item, _type: type };
-    const updatedRecents = [newItem, ...recentSearches.filter(
-      r => r.CityCode !== item.CityCode || (r.HotelCode !== item.HotelCode)
-    )].slice(0, 5);
+  // Handle Initial Selection
+  useEffect(() => {
+    if (initialSelection) {
+      if (initialSelection.CountryCode) {
+        setSelectedCountryCode(initialSelection.CountryCode);
+        // Find country name to display in input
+        const country = countries.find(c => c.Code === initialSelection.CountryCode);
+        if (country) setCountrySearchText(country.Name);
+      }
+      if (initialSelection.CityCode && initialSelection.CityName) {
+        setSelectedCityCode(initialSelection.CityCode);
+        setCitySearchText(initialSelection.CityName);
+      }
+    }
+  }, [initialSelection, countries]);
+
+  const normalizeText = (text) => (text || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  const filteredCountries = countries.filter(c => normalizeText(c.Name).includes(normalizeText(countrySearchText)));
+  const filteredCities = cities.filter(c => normalizeText(c.Name).includes(normalizeText(citySearchText)));
+
+  const handleCountrySelect = (country) => {
+    setSelectedCountryCode(country.Code);
+    setCountrySearchText(country.Name);
+    setIsCountryOpen(false);
     
-    setRecentSearches(updatedRecents);
-    try { localStorage.setItem('hotel_recent_searches', JSON.stringify(updatedRecents)); } catch (e) {}
+    // Reset City
+    setSelectedCityCode('');
+    setCitySearchText('');
+    setCities([]);
+  };
 
-    setQuery(type === 'city' ? item.CityName : item.HotelName);
-    setIsOpen(false);
+  const handleCitySelect = (city) => {
+    setSelectedCityCode(city.Code);
+    setCitySearchText(city.Name);
+    setIsCityOpen(false);
     
     if (onSelect) {
-      onSelect(newItem);
+      onSelect({
+        CityCode: city.Code,
+        CityName: city.Name,
+        CountryCode: selectedCountryCode,
+        _type: 'city'
+      });
     }
   };
 
-  const clearRecents = (e) => {
-    e.stopPropagation();
-    setRecentSearches([]);
-    localStorage.removeItem('hotel_recent_searches');
-  };
-
-  const removeRecent = (e, index) => {
-    e.stopPropagation();
-    const updated = [...recentSearches];
-    updated.splice(index, 1);
-    setRecentSearches(updated);
-    localStorage.setItem('hotel_recent_searches', JSON.stringify(updated));
-  };
-
-  const popularDestinations = [
-    { CityCode: '119805', CityName: 'Goa, India', CountryCode: 'IN', _type: 'city' },
-    { CityCode: '144306', CityName: 'Mumbai, India', CountryCode: 'IN', _type: 'city' },
-    { CityCode: '130443', CityName: 'New Delhi, India', CountryCode: 'IN', _type: 'city' },
-    { CityCode: '144092', CityName: 'Bangkok, Thailand', CountryCode: 'TH', _type: 'city' },
-    { CityCode: '115936', CityName: 'Dubai, UAE', CountryCode: 'AE', _type: 'city' },
-    { CityCode: '110670', CityName: 'Bali, Indonesia', CountryCode: 'ID', _type: 'city' }
-  ];
-
   return (
-    <div className="sf-input-col" style={{ flex: 1.3, position: 'relative' }} ref={wrapperRef}>
-      <span className="sf-label-text">City, Property Name or Location</span>
+    <div className="sf-input-col" ref={wrapperRef} style={{ flex: 1.3, display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '15px', position: 'relative' }}>
       
-      <input
-        type="text"
-        value={query}
-        onChange={(e) => {
-          setQuery(e.target.value);
-          setIsOpen(true);
-        }}
-        onFocus={() => setIsOpen(true)}
-        placeholder="Where are you going?"
-        className="sf-autocomplete-input"
-        style={{
-          width: '100%', border: 'none', outline: 'none', background: 'transparent',
-          fontSize: '20px', fontWeight: '800', color: '#111', padding: '0', margin: '4px 0 2px 0'
-        }}
-      />
-      
-      {isOpen && (
-        <div className="sf-dropdown" style={{ left: 0, right: 'auto', width: '380px', maxHeight: '400px', overflowY: 'auto' }}>
+      {/* Country Search */}
+      <div style={{ flex: 0.8, position: 'relative' }}>
+        <span className="sf-label-text">Select Country</span>
+        <div style={{ position: 'relative' }}>
+          <input
+            type="text"
+            value={countrySearchText}
+            onChange={(e) => {
+              setCountrySearchText(e.target.value);
+              setIsCountryOpen(true);
+            }}
+            onFocus={() => setIsCountryOpen(true)}
+            placeholder="Search Country..."
+            className="sf-autocomplete-input"
+            style={{
+              width: '100%', border: 'none', outline: 'none', background: 'transparent',
+              fontSize: '18px', fontWeight: '700', color: '#111', padding: '0', margin: '4px 0 2px 0',
+              textOverflow: 'ellipsis'
+            }}
+          />
+          {isLoading && <Loader2 size={16} className="fa-spin" style={{ position: 'absolute', right: '0', top: '5px', animation: 'spin 1s linear infinite' }} />}
+        </div>
+        
+        {/* Country Dropdown */}
+        {isCountryOpen && (
+          <div className="sf-dropdown" style={{ left: 0, right: 'auto', width: '300px', maxHeight: '300px', overflowY: 'auto', zIndex: 1000 }}>
+            {filteredCountries.length === 0 ? (
+              <div style={{ padding: '10px 15px', color: '#666' }}>No matches found</div>
+            ) : (
+              filteredCountries.map(country => (
+                <div 
+                  key={country.Code} 
+                  className="sf-dropdown-item" 
+                  onClick={() => handleCountrySelect(country)}
+                  style={{ padding: '10px 15px', cursor: 'pointer', borderBottom: '1px solid #eee' }}
+                >
+                  <div style={{ fontWeight: '600', color: '#333' }}>{country.Name}</div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+
+      <div style={{ width: '1px', background: '#eee', height: '40px' }}></div>
+
+      {/* City Search */}
+      <div style={{ flex: 1.5, position: 'relative' }}>
+        <span className="sf-label-text">Select City</span>
+        <div style={{ position: 'relative' }}>
+          <input
+            type="text"
+            value={citySearchText}
+            onChange={(e) => {
+              if (selectedCountryCode) {
+                setCitySearchText(e.target.value);
+                setIsCityOpen(true);
+              }
+            }}
+            onFocus={() => {
+              if (!selectedCountryCode) {
+                setShowCountryWarning(true);
+                setTimeout(() => setShowCountryWarning(false), 3000);
+              } else {
+                setIsCityOpen(true);
+              }
+            }}
+            placeholder={selectedCountryCode ? "Search City..." : "Select Country"}
+            readOnly={!selectedCountryCode}
+            className="sf-autocomplete-input"
+            title={citySearchText}
+            style={{
+              width: '100%', border: 'none', outline: 'none', background: 'transparent',
+              fontSize: '18px', fontWeight: '700', color: selectedCountryCode ? '#111' : '#ccc', padding: '0', margin: '4px 0 2px 0',
+              textOverflow: 'ellipsis', cursor: selectedCountryCode ? 'text' : 'pointer'
+            }}
+          />
           
-          {/* If typing, show results */}
-          {debouncedQuery.trim() ? (
-            <>
-              {isLoading && (
-                <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
-                  <Loader2 size={24} className="fa-spin" style={{ margin: '0 auto', animation: 'spin 1s linear infinite' }} />
-                  <div style={{ fontSize: '13px', marginTop: '8px' }}>Searching...</div>
-                </div>
-              )}
-
-              {!isLoading && results.cities.length === 0 && results.hotels.length === 0 && (
-                <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
-                  No matches found for "{query}"
-                </div>
-              )}
-
-              {!isLoading && results.cities.length > 0 && (
-                <div className="sf-dropdown-group">
-                  <div className="sf-dropdown-group-title" style={{ padding: '8px 15px', background: '#f8f9fa', fontSize: '12px', fontWeight: '700', color: '#555', borderBottom: '1px solid #eee' }}>
-                    CITIES
-                  </div>
-                  {results.cities.map(city => (
-                    <div key={city.CityCode} className="sf-dropdown-item" onClick={() => handleSelect(city, 'city')}>
-                      <MapPin className="sf-dropdown-icon" size={16} />
-                      <div className="sf-dropdown-info">
-                        <div className="sf-dropdown-city">
-                          {city.CityName}
-                          {city.CountryCode ? <span style={{ color: '#888', fontSize: '13px', marginLeft: '6px' }}>({city.CountryCode})</span> : ''}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {!isLoading && results.hotels.length > 0 && (
-                <div className="sf-dropdown-group">
-                  <div className="sf-dropdown-group-title" style={{ padding: '8px 15px', background: '#f8f9fa', fontSize: '12px', fontWeight: '700', color: '#555', borderBottom: '1px solid #eee' }}>
-                    HOTELS
-                  </div>
-                  {results.hotels.map(hotel => (
-                    <div key={hotel.HotelCode} className="sf-dropdown-item" onClick={() => handleSelect(hotel, 'hotel')}>
-                      <Building2 className="sf-dropdown-icon" size={16} />
-                      <div className="sf-dropdown-info">
-                        <div className="sf-dropdown-city">{hotel.HotelName}</div>
-                        <div className="sf-dropdown-name">{hotel.CityName || 'Property'}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          ) : (
-            /* Empty state: Recent Searches & Popular Destinations */
-            <>
-              {recentSearches.length > 0 && (
-                <div className="sf-dropdown-group" style={{ marginBottom: '10px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 15px', background: '#f8f9fa', borderBottom: '1px solid #eee' }}>
-                    <span style={{ fontSize: '12px', fontWeight: '700', color: '#555' }}>RECENT SEARCHES</span>
-                    <span style={{ fontSize: '12px', color: '#d81b21', cursor: 'pointer', fontWeight: '600' }} onClick={clearRecents}>Clear All</span>
-                  </div>
-                  {recentSearches.map((item, idx) => (
-                    <div key={idx} className="sf-dropdown-item" style={{ position: 'relative' }} onClick={() => handleSelect(item, item._type)}>
-                      <Clock className="sf-dropdown-icon" size={16} style={{ color: '#888' }} />
-                      <div className="sf-dropdown-info">
-                        <div className="sf-dropdown-city">{item._type === 'city' ? item.CityName : item.HotelName}</div>
-                        <div className="sf-dropdown-name">{item._type === 'city' ? 'City' : 'Property'}</div>
-                      </div>
-                      <X size={14} style={{ color: '#ccc', cursor: 'pointer', position: 'absolute', right: '15px' }} onClick={(e) => removeRecent(e, idx)} />
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="sf-dropdown-group">
-                <div className="sf-dropdown-group-title" style={{ padding: '8px 15px', background: '#f8f9fa', fontSize: '12px', fontWeight: '700', color: '#555', borderBottom: '1px solid #eee' }}>
-                  POPULAR DESTINATIONS
-                </div>
-                {popularDestinations.map(dest => (
-                  <div key={dest.CityCode} className="sf-dropdown-item" onClick={() => handleSelect(dest, 'city')}>
-                    <MapPin className="sf-dropdown-icon" size={16} color="#d81b21" />
-                    <div className="sf-dropdown-info">
-                      <div className="sf-dropdown-city">{dest.CityName}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
+          {/* Warning Message Box */}
+          {showCountryWarning && (
+            <div style={{
+              position: 'absolute', top: '-35px', left: '0', background: '#d81b21', color: '#fff', 
+              padding: '4px 10px', borderRadius: '4px', fontSize: '12px', fontWeight: '600', 
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)', whiteSpace: 'nowrap', zIndex: 10
+            }}>
+              Please select a country first
+              <div style={{
+                position: 'absolute', bottom: '-4px', left: '15px', width: '8px', height: '8px', 
+                background: '#d81b21', transform: 'rotate(45deg)'
+              }}></div>
+            </div>
           )}
 
+          {isCityLoading && <Loader2 size={16} className="fa-spin" style={{ position: 'absolute', right: '0', top: '5px', animation: 'spin 1s linear infinite' }} />}
         </div>
-      )}
-      
+
+        {/* City Dropdown */}
+        {isCityOpen && selectedCountryCode && (
+          <div className="sf-dropdown" style={{ left: 0, right: 'auto', width: '350px', maxHeight: '300px', overflowY: 'auto', zIndex: 1000 }}>
+            {filteredCities.length === 0 ? (
+              <div style={{ padding: '10px 15px', color: '#666' }}>No matches found</div>
+            ) : (
+              filteredCities.map(city => (
+                <div 
+                  key={city.Code} 
+                  className="sf-dropdown-item" 
+                  onClick={() => handleCitySelect(city)}
+                  style={{ padding: '10px 15px', cursor: 'pointer', borderBottom: '1px solid #eee' }}
+                >
+                  <div style={{ fontWeight: '600', color: '#333' }}>{city.Name}</div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+
       <style>{`
         @keyframes spin { 100% { transform: rotate(360deg); } }
       `}</style>

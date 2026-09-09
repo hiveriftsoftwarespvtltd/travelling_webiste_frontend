@@ -193,7 +193,7 @@ function BannerOne() {
                     {slide.subTitle}
                   </p>
                   
-                  <div className="hero-badges">
+                  {/* <div className="hero-badges">
                     <div className="hero-badge-item">
                       <div className="hero-badge-icon"><i className="fa-solid fa-location-dot"></i></div>
                       <div style={{ lineHeight: '1.2' }}>Best Price<br />Guarantee</div>
@@ -206,7 +206,7 @@ function BannerOne() {
                       <div className="hero-badge-icon"><i className="fa-solid fa-gem"></i></div>
                       <div style={{ lineHeight: '1.2' }}>Handpicked<br />Experiences</div>
                     </div>
-                  </div>
+                  </div> */}
                 </div>
               </div>
             </div>
