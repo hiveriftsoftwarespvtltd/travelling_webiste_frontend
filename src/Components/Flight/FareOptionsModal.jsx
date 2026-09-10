@@ -177,7 +177,7 @@ const buildFareFamilies = ({ upsellFamilies, quoteResults, ruleData, ssrData, se
 
         const fareData = upsell.Fare || {};
         const baseFare = Math.round(fareData.BaseFare || 0);
-        const tax      = Math.round(fareData.Tax || 0);
+        const tax = Math.round(fareData.Tax || 0);
         const fareBreakdown = upsell.FareBreakdown || quoteResults?.FareBreakdown || null;
 
         return {
@@ -235,32 +235,32 @@ const IconCalendar = () => (
 );
 const IconSeat = () => (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-        <path d="M20 12V22H4V12"/><path d="M22 7H2v5h20V7z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>
+        <path d="M20 12V22H4V12" /><path d="M22 7H2v5h20V7z" /><path d="M12 22V7" /><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" /><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
     </svg>
 );
 const IconBag = () => (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-        <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>
+        <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" /><line x1="3" y1="6" x2="21" y2="6" /><path d="M16 10a4 4 0 0 1-8 0" />
     </svg>
 );
 const IconCabin = () => (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-        <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/>
+        <rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" /><line x1="12" y1="12" x2="12" y2="16" /><line x1="10" y1="14" x2="14" y2="14" />
     </svg>
 );
 const IconMeal = () => (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-        <path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/>
+        <path d="M18 8h1a4 4 0 0 1 0 8h-1" /><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" /><line x1="6" y1="1" x2="6" y2="4" /><line x1="10" y1="1" x2="10" y2="4" /><line x1="14" y1="1" x2="14" y2="4" />
     </svg>
 );
 const IconRupee = () => (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-        <line x1="6" y1="3" x2="18" y2="3"/><line x1="6" y1="8" x2="18" y2="8"/><line x1="6" y1="13" x2="18" y2="21"/><path d="M6 8a6 6 0 0 0 0 5h6"/>
+        <line x1="6" y1="3" x2="18" y2="3" /><line x1="6" y1="8" x2="18" y2="8" /><line x1="6" y1="13" x2="18" y2="21" /><path d="M6 8a6 6 0 0 0 0 5h6" />
     </svg>
 );
 const IconRefund = () => (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-        <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/>
+        <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 .49-4.5" />
     </svg>
 );
 
@@ -271,12 +271,12 @@ const FareOptionsModal = ({ isOpen, onClose, outbound, returnFlight, navigate, f
     const [selectedOutId, setSelectedOutId] = useState(null);
     const [selectedRetId, setSelectedRetId] = useState(null);
     const [activeSegTab, setActiveSegTab] = useState(0);   // 0=outbound, 1=return
-    const [mainTab, setMainTab]           = useState('FARES'); // 'FARES' | 'ITINERARY' | 'RULES'
+    const [mainTab, setMainTab] = useState('FARES'); // 'FARES' | 'ITINERARY' | 'RULES'
 
-    const isRoundTrip  = !!returnFlight;
+    const isRoundTrip = !!returnFlight;
     const quoteResults = fetchedFareData?.quoteData?.Response?.Results;
-    const ruleData     = fetchedFareData?.ruleData;
-    const ssrData      = fetchedFareData?.ssrData;
+    const ruleData = fetchedFareData?.ruleData;
+    const ssrData = fetchedFareData?.ssrData;
     const outUpsellFamilies = useMemo(() => extractUpsellFamilies(fetchedFareData?.upsellData?.outbound || fetchedFareData?.upsellData), [fetchedFareData]);
     const retUpsellFamilies = useMemo(() => extractUpsellFamilies(fetchedFareData?.upsellData?.return), [fetchedFareData]);
 
@@ -285,8 +285,8 @@ const FareOptionsModal = ({ isOpen, onClose, outbound, returnFlight, navigate, f
         const isRef = flight.IsRefundable;
         const rules = getSectorRules(null, quoteResults, ruleData, isRet ? 1 : 0, isRef);
         return {
-            id: 1, name: 'Standard Fare', 
-            price: flight.Fare?.PublishedFare || 0, 
+            id: 1, name: 'Standard Fare',
+            price: flight.Fare?.PublishedFare || 0,
             isRefundable: isRef,
             resultIndex: flight.ResultIndex,
             cancelTextOut: null, dateChangeTextOut: null,
@@ -298,7 +298,7 @@ const FareOptionsModal = ({ isOpen, onClose, outbound, returnFlight, navigate, f
                 meal: getMeal(ssrData, isRet ? 1 : 0),
             }
         };
-    };
+    }; 
 
     const outFareFamilies = useMemo(() => {
         if (!outbound) return [];
@@ -350,7 +350,7 @@ const FareOptionsModal = ({ isOpen, onClose, outbound, returnFlight, navigate, f
             sub: null,
             alwaysShow: true,
             getText: (fare) => {
-                if (fare.isRefundable === true)  return '✓ Refundable';
+                if (fare.isRefundable === true) return '✓ Refundable';
                 if (fare.isRefundable === false) return '✗ Non Refundable';
                 return '—';
             },
@@ -520,10 +520,10 @@ const FareOptionsModal = ({ isOpen, onClose, outbound, returnFlight, navigate, f
     const visibleRows = ROWS.filter(r => r.alwaysShow || activeFareFamilies.some(f => r.getText(f)));
 
     const LEFT_W = 170;
-    const COL_W  = Math.max(200, Math.floor((860 - LEFT_W) / activeFareFamilies.length));
+    const COL_W = Math.max(200, Math.floor((860 - LEFT_W) / activeFareFamilies.length));
 
     const handleContinue = () => {
-        
+
         let prefetchedQuote = fetchedFareData?.quoteData;
 
         if (isRoundTrip && prefetchedQuote && selectedOut?.prefetchedQuote && selectedRet?.prefetchedQuote) {
@@ -563,7 +563,7 @@ const FareOptionsModal = ({ isOpen, onClose, outbound, returnFlight, navigate, f
             outboundFareFamily: selectedOut?.id,
             returnFareFamily: selectedRet?.id,
         };
-        
+
         navigate('/flight-checkout', { state: statePayload });
     };
 
@@ -609,9 +609,9 @@ const FareOptionsModal = ({ isOpen, onClose, outbound, returnFlight, navigate, f
                 {/* ── MAIN TABS: Fare Options | Flight Details | Fare Rules ── */}
                 <div style={{ display: 'flex', borderBottom: '1px solid #e8e8e8', background: '#fff', flexShrink: 0, padding: '0 4px' }}>
                     {[
-                        { key: 'FARES',     label: 'Fare Options' },
+                        { key: 'FARES', label: 'Fare Options' },
                         { key: 'ITINERARY', label: 'Flight Details' },
-                        { key: 'RULES',     label: 'Fare Rules' },
+                        { key: 'RULES', label: 'Fare Rules' },
                     ].map(({ key, label }) => (
                         <div
                             key={key}
@@ -625,140 +625,140 @@ const FareOptionsModal = ({ isOpen, onClose, outbound, returnFlight, navigate, f
 
                 {/* ── FLIGHT SEGMENT TABS (only in Fare Options tab) ── */}
                 {mainTab === 'FARES' && (
-                <div style={{ display: 'flex', borderBottom: '1px solid #e8e8e8', background: '#fafafa', flexShrink: 0, overflowX: 'auto' }}>
-                    {[{ tab: outTab, idx: 0 }, isRoundTrip && retTab ? { tab: retTab, idx: 1 } : null].filter(Boolean).map(({ tab, idx }) => (
-                        <div
-                            key={idx}
-                            className={`fo-tab${activeSegTab === idx ? ' active' : ''}`}
-                            onClick={() => setActiveSegTab(idx)}
-                        >
-                            <img
-                                src={`https://pics.avs.io/30/30/${tab.code}.png`}
-                                alt={tab.code}
-                                style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }}
-                                onError={e => e.target.style.display = 'none'}
-                            />
-                            <div>
-                                <div className="fo-tab-code">{tab.nums}</div>
-                                <div className="fo-tab-route">
-                                    {tab.from} → {tab.to} &nbsp; {tab.date} {tab.dep} - {tab.arr}
+                    <div style={{ display: 'flex', borderBottom: '1px solid #e8e8e8', background: '#fafafa', flexShrink: 0, overflowX: 'auto' }}>
+                        {[{ tab: outTab, idx: 0 }, isRoundTrip && retTab ? { tab: retTab, idx: 1 } : null].filter(Boolean).map(({ tab, idx }) => (
+                            <div
+                                key={idx}
+                                className={`fo-tab${activeSegTab === idx ? ' active' : ''}`}
+                                onClick={() => setActiveSegTab(idx)}
+                            >
+                                <img
+                                    src={`https://pics.avs.io/30/30/${tab.code}.png`}
+                                    alt={tab.code}
+                                    style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }}
+                                    onError={e => e.target.style.display = 'none'}
+                                />
+                                <div>
+                                    <div className="fo-tab-code">{tab.nums}</div>
+                                    <div className="fo-tab-route">
+                                        {tab.from} → {tab.to} &nbsp; {tab.date} {tab.dep} - {tab.arr}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
                 )}
 
                 {/* ── FARE OPTIONS TABLE ── */}
                 {mainTab === 'FARES' && (
-                <div style={{ flex: 1, overflowY: 'auto', overflowX: 'auto', minHeight: 0 }}>
-                    <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: `${LEFT_W + COL_W * activeFareFamilies.length}px`, tableLayout: 'fixed' }}>
+                    <div style={{ flex: 1, overflowY: 'auto', overflowX: 'auto', minHeight: 0 }}>
+                        <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: `${LEFT_W + COL_W * activeFareFamilies.length}px`, tableLayout: 'fixed' }}>
 
-                        {/* COLUMN HEADERS — price + fare name + radio */}
-                        <thead>
-                            <tr>
-                                {/* Left corner: "Services" */}
-                                <th style={{ width: `${LEFT_W}px`, padding: '14px 16px 12px', background: '#fff', borderBottom: '1px solid #e8e8e8', textAlign: 'left', fontWeight: '600', fontSize: '15px', color: '#222', verticalAlign: 'bottom' }}>
-                                    Services
-                                </th>
+                            {/* COLUMN HEADERS — price + fare name + radio */}
+                            <thead>
+                                <tr>
+                                    {/* Left corner: "Services" */}
+                                    <th style={{ width: `${LEFT_W}px`, padding: '14px 16px 12px', background: '#fff', borderBottom: '1px solid #e8e8e8', textAlign: 'left', fontWeight: '600', fontSize: '15px', color: '#222', verticalAlign: 'bottom' }}>
+                                        Services
+                                    </th>
 
-                                {activeFareFamilies.map((fare) => {
-                                    const isActive = fare.id === activeSelectedId;
-                                    return (
-                                        <th
-                                            key={fare.id}
-                                            className={`fo-col-head${isActive ? ' fo-col' : ''}`}
-                                            onClick={() => setActiveSelectedId(fare.id)}
-                                            style={{
-                                                width: `${COL_W}px`,
-                                                background: '#fff',
-                                                border: isActive ? '2px solid #15803d' : '1px solid #e8e8e8',
-                                                borderBottom: isActive ? '2px solid #15803d' : '1px solid #e8e8e8',
-                                                textAlign: 'left',
-                                                fontWeight: 'normal',
-                                                verticalAlign: 'top',
-                                            }}
-                                        >
-                                            {/* Radio + price */}
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                                                <div className={`fo-radio${isActive ? ' checked' : ''}`} />
-                                                <span style={{ fontSize: '22px', fontWeight: '800', color: '#222', letterSpacing: '-0.5px' }}>
-                                                    ₹{fare.price.toLocaleString('en-IN')}
-                                                </span>
-                                            </div>
-                                            {/* Fare name */}
-                                            <div style={{ fontSize: '12px', color: '#666', fontWeight: '400', paddingLeft: '24px' }}>
-                                                {fare.name}
-                                            </div>
-                                            {/* Base + Tax sub-line */}
-                                            {(fare.baseFare > 0 || fare.tax > 0) && (
-                                                <div style={{ fontSize: '11px', color: '#999', paddingLeft: '24px', marginTop: '3px' }}>
-                                                    Base ₹{fare.baseFare?.toLocaleString('en-IN') || '—'}
-                                                    &nbsp;+&nbsp;
-                                                    Tax ₹{fare.tax?.toLocaleString('en-IN') || '—'}
-                                                </div>
-                                            )}
-                                        </th>
-                                    );
-                                })}
-                            </tr>
-                        </thead>
-
-                        {/* BODY — service rows */}
-                        <tbody>
-                            {visibleRows.map((row, ri) => (
-                                <tr key={ri}>
-                                    {/* Left label */}
-                                    <td className="fo-left-cell">
-                                        {row.icon}
-                                        <div>
-                                            <div style={{ fontSize: '13px', fontWeight: '600', color: '#222' }}>{row.label}</div>
-                                            {row.sub && <div style={{ fontSize: '11px', color: '#888', marginTop: '2px' }}>{row.sub}</div>}
-                                        </div>
-                                    </td>
-
-                                    {/* Fare columns */}
                                     {activeFareFamilies.map((fare) => {
                                         const isActive = fare.id === activeSelectedId;
-                                        const text = row.getText(fare);
                                         return (
-                                            <td
+                                            <th
                                                 key={fare.id}
-                                                className="fo-cell"
+                                                className={`fo-col-head${isActive ? ' fo-col' : ''}`}
                                                 onClick={() => setActiveSelectedId(fare.id)}
                                                 style={{
-                                                    border: isActive ? '2px solid #15803d' : '1px solid #eee',
-                                                    borderTop: 'none',
-                                                    cursor: 'pointer',
+                                                    width: `${COL_W}px`,
+                                                    background: '#fff',
+                                                    border: isActive ? '2px solid #15803d' : '1px solid #e8e8e8',
+                                                    borderBottom: isActive ? '2px solid #15803d' : '1px solid #e8e8e8',
+                                                    textAlign: 'left',
+                                                    fontWeight: 'normal',
                                                     verticalAlign: 'top',
                                                 }}
                                             >
-                                                {/* Use renderCell for rich JSX content (e.g. FareBreakdown) */}
-                                                {row.renderCell ? (
-                                                    <div style={{ fontSize: '13px', color: '#222', lineHeight: '1.55' }}>
-                                                        {row.renderCell(fare) || <span style={{ color: '#bbb' }}>—</span>}
-                                                    </div>
-                                                ) : (
-                                                    <div style={{
-                                                        fontSize: '13px',
-                                                        lineHeight: '1.55',
-                                                        whiteSpace: 'pre-line',
-                                                        color: row.label === 'Refundable'
-                                                            ? (text === '✓ Refundable' ? '#15803d' : text === '✗ Non Refundable' ? '#dc2626' : '#555')
-                                                            : '#222',
-                                                        fontWeight: row.label === 'Refundable' ? '600' : 'normal',
-                                                    }}>
-                                                        {text || <span style={{ color: '#bbb' }}>—</span>}
+                                                {/* Radio + price */}
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                                    <div className={`fo-radio${isActive ? ' checked' : ''}`} />
+                                                    <span style={{ fontSize: '22px', fontWeight: '800', color: '#222', letterSpacing: '-0.5px' }}>
+                                                        ₹{fare.price.toLocaleString('en-IN')}
+                                                    </span>
+                                                </div>
+                                                {/* Fare name */}
+                                                <div style={{ fontSize: '12px', color: '#666', fontWeight: '400', paddingLeft: '24px' }}>
+                                                    {fare.name}
+                                                </div>
+                                                {/* Base + Tax sub-line */}
+                                                {(fare.baseFare > 0 || fare.tax > 0) && (
+                                                    <div style={{ fontSize: '11px', color: '#999', paddingLeft: '24px', marginTop: '3px' }}>
+                                                        Base ₹{fare.baseFare?.toLocaleString('en-IN') || '—'}
+                                                        &nbsp;+&nbsp;
+                                                        Tax ₹{fare.tax?.toLocaleString('en-IN') || '—'}
                                                     </div>
                                                 )}
-                                            </td>
+                                            </th>
                                         );
                                     })}
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                            </thead>
+
+                            {/* BODY — service rows */}
+                            <tbody>
+                                {visibleRows.map((row, ri) => (
+                                    <tr key={ri}>
+                                        {/* Left label */}
+                                        <td className="fo-left-cell">
+                                            {row.icon}
+                                            <div>
+                                                <div style={{ fontSize: '13px', fontWeight: '600', color: '#222' }}>{row.label}</div>
+                                                {row.sub && <div style={{ fontSize: '11px', color: '#888', marginTop: '2px' }}>{row.sub}</div>}
+                                            </div>
+                                        </td>
+
+                                        {/* Fare columns */}
+                                        {activeFareFamilies.map((fare) => {
+                                            const isActive = fare.id === activeSelectedId;
+                                            const text = row.getText(fare);
+                                            return (
+                                                <td
+                                                    key={fare.id}
+                                                    className="fo-cell"
+                                                    onClick={() => setActiveSelectedId(fare.id)}
+                                                    style={{
+                                                        border: isActive ? '2px solid #15803d' : '1px solid #eee',
+                                                        borderTop: 'none',
+                                                        cursor: 'pointer',
+                                                        verticalAlign: 'top',
+                                                    }}
+                                                >
+                                                    {/* Use renderCell for rich JSX content (e.g. FareBreakdown) */}
+                                                    {row.renderCell ? (
+                                                        <div style={{ fontSize: '13px', color: '#222', lineHeight: '1.55' }}>
+                                                            {row.renderCell(fare) || <span style={{ color: '#bbb' }}>—</span>}
+                                                        </div>
+                                                    ) : (
+                                                        <div style={{
+                                                            fontSize: '13px',
+                                                            lineHeight: '1.55',
+                                                            whiteSpace: 'pre-line',
+                                                            color: row.label === 'Refundable'
+                                                                ? (text === '✓ Refundable' ? '#15803d' : text === '✗ Non Refundable' ? '#dc2626' : '#555')
+                                                                : '#222',
+                                                            fontWeight: row.label === 'Refundable' ? '600' : 'normal',
+                                                        }}>
+                                                            {text || <span style={{ color: '#bbb' }}>—</span>}
+                                                        </div>
+                                                    )}
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 )}
 
                 {/* ── FLIGHT DETAILS (ITINERARY) ── */}
@@ -772,9 +772,9 @@ const FareOptionsModal = ({ isOpen, onClose, outbound, returnFlight, navigate, f
                                 <div key={label} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', marginBottom: '16px', overflow: 'hidden' }}>
                                     <div style={{ padding: '12px 16px', borderBottom: '1px solid #e8e8e8', fontWeight: '700', fontSize: '13px', color: '#333', background: '#f8f9fa' }}>{label}</div>
                                     {segs.map((leg, li) => {
-                                        const layMs = li > 0 ? new Date(leg.Origin.DepTime) - new Date(segs[li-1].Destination.ArrTime) : 0;
-                                        const durStr = `${Math.floor(leg.Duration/60)}h ${leg.Duration%60}m`;
-                                        const layStr = li > 0 ? `${Math.floor(layMs/3600000)}h ${Math.floor((layMs%3600000)/60000)}m` : '';
+                                        const layMs = li > 0 ? new Date(leg.Origin.DepTime) - new Date(segs[li - 1].Destination.ArrTime) : 0;
+                                        const durStr = `${Math.floor(leg.Duration / 60)}h ${leg.Duration % 60}m`;
+                                        const layStr = li > 0 ? `${Math.floor(layMs / 3600000)}h ${Math.floor((layMs % 3600000) / 60000)}m` : '';
                                         const dep = new Date(leg.Origin.DepTime);
                                         const arr = new Date(leg.Destination.ArrTime);
                                         return (
@@ -784,7 +784,7 @@ const FareOptionsModal = ({ isOpen, onClose, outbound, returnFlight, navigate, f
                                                         Layover: {layStr} in {leg.Origin.Airport.CityName}
                                                     </div>
                                                 )}
-                                                <div style={{ padding: '14px 16px', display: 'flex', gap: '16px', alignItems: 'flex-start', borderBottom: li < segs.length-1 ? '1px solid #f0f0f0' : 'none' }}>
+                                                <div style={{ padding: '14px 16px', display: 'flex', gap: '16px', alignItems: 'flex-start', borderBottom: li < segs.length - 1 ? '1px solid #f0f0f0' : 'none' }}>
                                                     {/* Airline info */}
                                                     <div style={{ minWidth: '140px' }}>
                                                         <div style={{ fontWeight: '700', fontSize: '13px', color: '#222' }}>{leg.Airline.AirlineName}</div>
@@ -797,16 +797,16 @@ const FareOptionsModal = ({ isOpen, onClose, outbound, returnFlight, navigate, f
                                                     {/* Route timeline */}
                                                     <div style={{ flex: 1 }}>
                                                         <div style={{ display: 'flex', gap: '8px', alignItems: 'baseline' }}>
-                                                            <span style={{ fontSize: '18px', fontWeight: '800', color: '#111' }}>{dep.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:false})}</span>
+                                                            <span style={{ fontSize: '18px', fontWeight: '800', color: '#111' }}>{dep.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
                                                             <span style={{ fontSize: '12px', color: '#666' }}>{leg.Origin.Airport.CityName} ({leg.Origin.Airport.AirportCode})</span>
                                                         </div>
-                                                        <div style={{ fontSize: '11px', color: '#888', marginBottom: '6px' }}>{dep.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})} · {leg.Origin.Airport.AirportName}</div>
+                                                        <div style={{ fontSize: '11px', color: '#888', marginBottom: '6px' }}>{dep.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} · {leg.Origin.Airport.AirportName}</div>
                                                         <div style={{ fontSize: '11px', color: '#aaa', marginBottom: '6px', paddingLeft: '4px' }}>── {durStr} ──</div>
                                                         <div style={{ display: 'flex', gap: '8px', alignItems: 'baseline' }}>
-                                                            <span style={{ fontSize: '18px', fontWeight: '800', color: '#111' }}>{arr.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:false})}</span>
+                                                            <span style={{ fontSize: '18px', fontWeight: '800', color: '#111' }}>{arr.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
                                                             <span style={{ fontSize: '12px', color: '#666' }}>{leg.Destination.Airport?.CityName} ({leg.Destination.Airport?.AirportCode})</span>
                                                         </div>
-                                                        <div style={{ fontSize: '11px', color: '#888' }}>{arr.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})} · {leg.Destination.Airport?.AirportName}</div>
+                                                        <div style={{ fontSize: '11px', color: '#888' }}>{arr.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} · {leg.Destination.Airport?.AirportName}</div>
                                                     </div>
                                                     {/* Baggage */}
                                                     <div style={{ minWidth: '110px', borderLeft: '1px solid #eee', paddingLeft: '14px', fontSize: '12px', color: '#444' }}>

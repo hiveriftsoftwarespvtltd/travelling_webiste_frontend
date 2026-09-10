@@ -134,8 +134,16 @@ export default function HotelSearchAutocomplete({ onSelect, initialSelection }) 
             onChange={(e) => {
               setCountrySearchText(e.target.value);
               setIsCountryOpen(true);
+              setIsCityOpen(false);
             }}
-            onFocus={() => setIsCountryOpen(true)}
+            onFocus={() => {
+              setIsCountryOpen(true);
+              setIsCityOpen(false);
+            }}
+            onClick={() => {
+              setIsCountryOpen(true);
+              setIsCityOpen(false);
+            }}
             placeholder="Search Country..."
             className="sf-autocomplete-input"
             style={{
@@ -181,6 +189,7 @@ export default function HotelSearchAutocomplete({ onSelect, initialSelection }) 
               if (selectedCountryCode) {
                 setCitySearchText(e.target.value);
                 setIsCityOpen(true);
+                setIsCountryOpen(false);
               }
             }}
             onFocus={() => {
@@ -189,9 +198,16 @@ export default function HotelSearchAutocomplete({ onSelect, initialSelection }) 
                 setTimeout(() => setShowCountryWarning(false), 3000);
               } else {
                 setIsCityOpen(true);
+                setIsCountryOpen(false);
               }
             }}
-            placeholder={selectedCountryCode ? "Search City..." : "Select Country"}
+            onClick={() => {
+              if (selectedCountryCode) {
+                setIsCityOpen(true);
+                setIsCountryOpen(false);
+              }
+            }}
+            placeholder={selectedCountryCode ? "Search City..." : "Select City ..."}
             readOnly={!selectedCountryCode}
             className="sf-autocomplete-input"
             title={citySearchText}

@@ -421,18 +421,25 @@ function FlightCheckout() {
     const handleSsrToggle = (type, item) => {
         // Guard: don't allow toggle if no passenger is selected yet
         if (activePax === null) return;
-        if (type === 'seat' && item?.AvailablityType !== 1) return;
-        if (type === 'seat' && item && bookedSeatCodes.has(item.Code)) return;
+        
+        if (type === 'seat') {
+            const availType = item?.AvailablityType ?? item?.AvailabilityType;
+            if (availType !== 1 && availType !== "1" && availType !== true) return;
+            if (bookedSeatCodes.has(item?.Code)) return;
+        }
+
+        const currentPaxSSR = selectedSSR[activeSector]?.[activePax];
+        const same = currentPaxSSR?.[type]?.Code === item?.Code;
+        const newValue = (!item || same) ? null : item;
+        
+        // If item is null, it means user clicked the explicit "No Meal" / "No Baggage" button
+        const isToggledOn = (item && !same) || item === null;
 
         setSelectedSSR(prev => {
             // ✅ DEEP COPY each nested level — shallow spread only copies top level,
             //    inner objects keep the same reference, React won't see the change.
             const prevSector = prev[activeSector] || {};
             const prevPax    = prevSector[activePax] || { meal: null, baggage: null, seat: null, _hasSet: {} };
-
-            // Determine new value: toggle off if same item clicked again, or "No X" clicked
-            const same     = prevPax[type]?.Code === item?.Code;
-            const newValue = (!item || same) ? null : item;
 
             // _hasSet tracks which types user has explicitly interacted with
             // so we can distinguish 'user cleared to No Meal' vs 'never touched'
@@ -451,6 +458,18 @@ function FlightCheckout() {
                 },
             };
         });
+
+        // Auto-advance tab if an item was selected (not toggled off)
+        if (isToggledOn) {
+            if (type === 'meal') {
+                if (currentAvailableBaggage.length > 0) setActiveSsrTab('baggage');
+                else if (currentAvailableSeatsRows.length > 0) setActiveSsrTab('seats');
+                else if (currentSpecialServices.length > 0) setActiveSsrTab('special');
+            } else if (type === 'baggage') {
+                if (currentAvailableSeatsRows.length > 0) setActiveSsrTab('seats');
+                else if (currentSpecialServices.length > 0) setActiveSsrTab('special');
+            }
+        }
     };
 
     // Returns the selected item for the current pax+sector, or null if none
@@ -1123,7 +1142,7 @@ function FlightCheckout() {
 
                             {/* Add-ons (SSR) Section */}
                             {ssrData && (
-                                <div style={{ background: '#fff', borderRadius: '16px', padding: '24px', marginBottom: '24px', boxShadow: '0 2px 10px rgba(0,0,0,0.02)', border: '1px solid #e4e7ed' }}>
+                                <div id="ssr-section-start" style={{ background: '#fff', borderRadius: '16px', padding: '24px', marginBottom: '24px', boxShadow: '0 2px 10px rgba(0,0,0,0.02)', border: '1px solid #e4e7ed' }}>
                                     <h4 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#1a1a2e', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                         <PlusCircle size={20} color="#e8151b" /> Enhance Your Trip (Add-ons)
                                     </h4>
@@ -1154,27 +1173,26 @@ function FlightCheckout() {
                                             {/* Sector Tabs */}
                                             {segments.length > 1 && (
                                                 <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
-                                            {segments.map((sectorObj, idx) => {
-                                                const fL = sectorObj[0];
-                                                const lL = sectorObj[sectorObj.length - 1];
-                                                return (
-                                                    <button
-                                                        key={idx}
-                                                        onClick={(e) => { e.preventDefault(); setActiveSector(idx); setActiveSegment(0); }}
-                                                        style={{
-                                                            padding: '8px 16px', borderRadius: '8px', border: 'none',
-                                                            background: activeSector === idx ? '#e8151b' : '#f1f5f9',
-                                                            color: activeSector === idx ? '#fff' : '#475569',
-                                                            fontWeight: '600', fontSize: '14px', cursor: 'pointer'
-                                                        }}
-                                                    >
-                                                        {fL?.Origin?.Airport?.CityCode} ✈ {lL?.Destination?.Airport?.CityCode}
-                                                    </button>
-                                                )
-                                            })}
-                                        </div>
-                                    )}
-
+                                                    {segments.map((sectorObj, idx) => {
+                                                        const fL = sectorObj[0];
+                                                        const lL = sectorObj[sectorObj.length - 1];
+                                                        return (
+                                                            <button
+                                                                key={idx}
+                                                                onClick={(e) => { e.preventDefault(); setActiveSector(idx); setActiveSegment(0); }}
+                                                                style={{
+                                                                    padding: '8px 16px', borderRadius: '8px', border: 'none',
+                                                                    background: activeSector === idx ? '#e8151b' : '#f1f5f9',
+                                                                    color: activeSector === idx ? '#fff' : '#475569',
+                                                                    fontWeight: '600', fontSize: '14px', cursor: 'pointer'
+                                                                }}
+                                                            >
+                                                                {fL?.Origin?.Airport?.CityCode} ✈ {lL?.Destination?.Airport?.CityCode}
+                                                            </button>
+                                                        )
+                                                    })}
+                                                </div>
+                                            )}
                                     {/* Passenger Selector — Adult 1, Adult 2, Child 1, Child 2 (infants excluded) */}
                                     {eligiblePaxCount > 0 && (
                                         <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -1348,30 +1366,7 @@ function FlightCheckout() {
                                     {/* Seats */}
                                     {activeSsrTab === 'seats' && currentAvailableSeatsRows.length > 0 && (
                                         <div style={{ marginTop: '24px' }}>
-                                            {/* Sub-tabs for each flight leg within a sector (connecting flights) */}
-                                            {currentSegmentSeats.length > 1 && (
-                                                <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-                                                    {currentSegmentSeats.map((seg, sIdx) => {
-                                                        const segLabel = seg.RowSeats?.[0]?.Seats?.[0]?.SeatNo
-                                                            ? `Leg ${sIdx + 1}` : `Segment ${sIdx + 1}`;
-                                                        return (
-                                                            <button
-                                                                key={sIdx}
-                                                                type="button"
-                                                                onClick={() => setActiveSegment(sIdx)}
-                                                                style={{
-                                                                    padding: '5px 14px', borderRadius: '20px', border: 'none',
-                                                                    background: activeSegment === sIdx ? '#1a6dcf' : '#f1f5f9',
-                                                                    color: activeSegment === sIdx ? '#fff' : '#475569',
-                                                                    fontWeight: '600', fontSize: '13px', cursor: 'pointer'
-                                                                }}
-                                                            >
-                                                                {segLabel}
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )}
+                                            {/* Segment tabs removed per user request */}
                                             {/* Legend */}
                                             <div style={{ display: 'flex', gap: '16px', marginBottom: '16px', fontSize: '12px', fontWeight: '600', flexWrap: 'wrap' }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -1426,7 +1421,9 @@ function FlightCheckout() {
                                                             {/* Left Seats */}
                                                             <div className="fco-seat-grp">
                                                                 {leftSeats.map((seat, sIdx) => {
-                                                                    const isAvailable = seat.AvailablityType === 1;
+                                                                    const availType = seat.AvailablityType ?? seat.AvailabilityType;
+                                                                    // Some LCCs don't send AvailablityType or it's mapped differently, assume available if we don't know it's blocked. But user says all are showing available, so let's check for 1 or undefined.
+                                                                    const isAvailable = availType === 1 || availType === "1" || availType === true || availType === undefined;
                                                                     const isSelectedByMe = getCurrentSSR('seat')?.Code === seat.Code;
                                                                     const isTakenByOther = !isSelectedByMe && bookedSeatCodes.has(seat.Code);
 
@@ -1461,7 +1458,9 @@ function FlightCheckout() {
                                                             {/* Right Seats */}
                                                             <div className="fco-seat-grp">
                                                                 {rightSeats.map((seat, sIdx) => {
-                                                                    const isAvailable = seat.AvailablityType === 1;
+                                                                    const availType = seat.AvailablityType ?? seat.AvailabilityType;
+                                                                    const isAvailable = availType === 1 || availType === "1" || availType === true || availType === undefined; 
+                                                                    // We allow undefined just in case TBO stops sending it for free seats.
                                                                     const isSelectedByMe = getCurrentSSR('seat')?.Code === seat.Code;
                                                                     const isTakenByOther = !isSelectedByMe && bookedSeatCodes.has(seat.Code);
 
@@ -1527,10 +1526,108 @@ function FlightCheckout() {
                                     )}
                                     </>
                                     )}
+                                    
+                                    {/* --- NEXT SEGMENT / NEXT PASSENGER BUTTON --- */}
+                                    <div style={{ marginTop: '30px', paddingTop: '20px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        
+                                        {/* PREVIOUS BUTTON */}
+                                        <button
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                const currentPaxIdx = eligiblePassengers.findIndex(p => p.originalIndex === activePax);
+                                                
+                                                if (activeSsrTab === 'seats' && activeSegment > 0) {
+                                                    setActiveSegment(activeSegment - 1);
+                                                    document.getElementById('ssr-section-start')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                                } else if (currentPaxIdx > 0) {
+                                                    setActivePax(eligiblePassengers[currentPaxIdx - 1].originalIndex);
+                                                    setActiveSsrTab('meals');
+                                                    document.getElementById('ssr-section-start')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                                } else if (activeSector > 0) {
+                                                    setActiveSector(activeSector - 1);
+                                                    setActivePax(eligiblePassengers[eligiblePassengers.length - 1].originalIndex);
+                                                    setActiveSegment(0);
+                                                    setActiveSsrTab('meals');
+                                                    document.getElementById('ssr-section-start')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                                }
+                                            }}
+                                            style={{
+                                                background: '#f1f5f9',
+                                                color: '#475569',
+                                                padding: '12px 24px',
+                                                borderRadius: '8px',
+                                                border: '1px solid #cbd5e1',
+                                                fontWeight: '600',
+                                                fontSize: '15px',
+                                                cursor: 'pointer',
+                                                display: (activeSector === 0 && eligiblePassengers.findIndex(p => p.originalIndex === activePax) === 0 && activeSegment === 0) ? 'none' : 'flex',
+                                                alignItems: 'center',
+                                                gap: '8px'
+                                            }}
+                                        >
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                                            Previous
+                                        </button>
+
+                                        {/* NEXT BUTTON */}
+                                        <button
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                const currentPaxIdx = eligiblePassengers.findIndex(p => p.originalIndex === activePax);
+                                                
+                                                if (activeSsrTab === 'seats' && activeSegment < currentSegmentSeats.length - 1) {
+                                                    // Move to next leg in same sector (for connecting flights)
+                                                    setActiveSegment(activeSegment + 1);
+                                                    document.getElementById('ssr-section-start')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                                } else if (currentPaxIdx >= 0 && currentPaxIdx < eligiblePassengers.length - 1) {
+                                                    // Move to next passenger in the same sector
+                                                    setActivePax(eligiblePassengers[currentPaxIdx + 1].originalIndex);
+                                                    setActiveSegment(0);
+                                                    setActiveSsrTab('meals');
+                                                    document.getElementById('ssr-section-start')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                                } else if (activeSector < segments.length - 1) {
+                                                    // Move to next sector (Segment 2)
+                                                    setActiveSector(activeSector + 1);
+                                                    setActivePax(eligiblePassengers[0].originalIndex);
+                                                    setActiveSegment(0);
+                                                    setActiveSsrTab('meals');
+                                                    document.getElementById('ssr-section-start')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                                } else {
+                                                    // Done with all passengers and segments
+                                                    document.getElementById('passenger-details-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                                }
+                                            }}
+                                            style={{
+                                                background: '#1a1a2e',
+                                                color: '#fff',
+                                                padding: '12px 24px',
+                                                borderRadius: '8px',
+                                                border: 'none',
+                                                fontWeight: '600',
+                                                fontSize: '15px',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '8px',
+                                                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
+                                                marginLeft: 'auto'
+                                            }}
+                                        >
+                                            {(activeSsrTab === 'seats' && activeSegment < currentSegmentSeats.length - 1)
+                                                ? 'Next Flight Leg'
+                                                : (activeSector < segments.length - 1 && eligiblePassengers.findIndex(p => p.originalIndex === activePax) === eligiblePassengers.length - 1)
+                                                    ? 'Next Segment (Sector)' 
+                                                    : eligiblePassengers.findIndex(p => p.originalIndex === activePax) < eligiblePassengers.length - 1 
+                                                        ? 'Next Passenger' 
+                                                        : 'Continue to Passenger Details'}
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+                                        </button>
+                                    </div>
                                 </div>
                             )}
+                            
                             {/* Passenger Details Form */}
-                            <div style={{ background: '#fff', borderRadius: '16px', padding: '24px', marginBottom: '24px', boxShadow: '0 2px 10px rgba(0,0,0,0.02)', border: '1px solid #e4e7ed' }}>
+                            <div id="passenger-details-form" style={{ background: '#fff', borderRadius: '16px', padding: '24px', marginBottom: '24px', boxShadow: '0 2px 10px rgba(0,0,0,0.02)', border: '1px solid #e4e7ed' }}>
                                 <h4 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#1a1a2e', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <User size={20} color="#e8151b" /> Passenger Details
                                 </h4>
